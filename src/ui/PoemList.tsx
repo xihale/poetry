@@ -1,7 +1,6 @@
 import getPoems from "@/apis/getPoems"
 
 import styles from  "./PoemList.module.scss"
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function PoemList(){
