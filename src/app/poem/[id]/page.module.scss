@@ -11,7 +11,7 @@
   z-index: 10;
   top: 0;
   width: 50%;
-  min-width: 400px;
+  min-width: 340px;
   background: #ffffed;
   margin: auto;
   padding: 1rem;
@@ -22,6 +22,11 @@
   outline-offset: -2px;
   margin-bottom: 2rem;
   margin-top: 2rem;
+
+  @media screen and (max-width: 600px) {
+    outline: none;
+    margin: 0;
+  }
 
   .meta{
     display: flex;
@@ -37,7 +42,6 @@
   }
 
   .content{
-    // mt-5 mb-1 text-xl
     margin-top: 1rem;
     margin-bottom: 1rem;
     font-size: 1.5rem;
