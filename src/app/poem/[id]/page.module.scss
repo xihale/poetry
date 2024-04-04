@@ -1,0 +1,57 @@
+.container{
+  // h-screen w-screen overflow-auto
+  height: 100vh;
+  width: 100vw;
+  overflow: auto;
+  scrollbar-width: none;
+}
+
+.poem{
+  position: relative;
+  z-index: 10;
+  top: 0;
+  width: 50%;
+  min-width: 40rem;
+  background: #ffffed;
+  margin: auto;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 14px 0 rgba(0, 0, 0, 0.1);
+  outline: dashed;
+  outline-width: 2px;
+  outline-offset: -2px;
+  margin-bottom: 2rem;
+  margin-top: 2rem;
+
+  .meta{
+    display: flex;
+    flex-direction: row;
+    justify-content: left;
+    align-items: baseline;
+    font-weight: bold;
+
+    .title{
+      font-size: 3rem;
+      margin-right: 2rem;
+    }
+  }
+
+  .content{
+    // mt-5 mb-1 text-xl
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+  }
+
+
+}
+
+
+.back{
+  z-index: 1;
+  background: #00000045;
+  position: fixed;
+  width: 100vw;
+  height: 100vh;
+  top: 0;
+}

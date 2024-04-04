@@ -1,0 +1,47 @@
+.container {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  position: fixed;
+  overflow-x: auto;
+}
+
+.card {
+  width: 20rem;
+  height: 30%;
+  margin: 1.25rem;
+  padding: 1.25rem;
+  border-radius: 0.25rem;
+  box-shadow: 0 4px 14px 0 rgba(0, 0, 0, 0.1);
+  background-color: #ffffed;
+
+  display: flex;
+  flex-direction: column;
+
+  &:hover {
+    outline-style: dashed;
+  }
+
+  .meta{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: baseline;
+    font-weight: 700;
+    line-height: 2.25rem;
+
+    .title{
+      font-size: 1.875rem;
+      margin-right: 1rem;
+    }
+  }
+
+  .brief{
+    overflow: hidden;
+    flex: 1 1 auto;
+    padding-top: 0.5rem;
+  }
+
+}

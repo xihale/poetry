@@ -3,12 +3,12 @@ import fs from "node:fs"
 
 export default function getPoems(){
 
-  let poemIds = fs.readdirSync("public/text").map((f)=>parseInt(f.split(".")[0])).sort((a,b)=>a-b);
+  let poemIds = fs.readdirSync("src/text").map((f)=>parseInt(f.split(".")[0])).sort((a,b)=>a-b);
 
   let poems:PoemBrief[] = [];
 
   poemIds.forEach(id => {
-    let content = fs.readFileSync("public/text/"+id+".txt").toString();
+    let content = fs.readFileSync("src/text/"+id+".txt").toString();
     let meta = content.slice(0, content.indexOf("\n")).split('|');
     poems.push({
       id: id,

@@ -1,5 +1,5 @@
 
-import PoemList from '../components/PoemList'
+import PoemList from '../ui/PoemList'
 import './globals.css'
 import type { Metadata } from 'next'
 
@@ -18,7 +18,7 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/favicon.png" />
       </head>
-      <body className="overflow-hidden">
+      <body>
         <PoemList></PoemList>
         {children}
       </body>
