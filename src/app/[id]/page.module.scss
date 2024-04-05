@@ -1,5 +1,4 @@
 .container{
-  // h-screen w-screen overflow-auto
   height: 100vh;
   width: 100vw;
   overflow: auto;
@@ -26,6 +25,9 @@
   @media screen and (max-width: 600px) {
     outline: none;
     margin: 0;
+    min-width: 100vw;
+    box-sizing: border-box;
+    padding-right: 0.5rem;
   }
 
   .meta{
@@ -46,7 +48,6 @@
     margin-bottom: 1rem;
     font-size: 1.5rem;
   }
-
 
 }
 
