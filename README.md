@@ -13,4 +13,4 @@
 
 Just fill public/text with `[number].txt`.
 
-It's not only a poems' colletor, but also text's warm home.
+It's not only a poems' collector, but also text's warm home.
