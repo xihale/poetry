@@ -1,6 +1,6 @@
 ## Why
 
-1. Just for practice and fun.
+1. Just for practices and fun.
 2. Use blog to collect seems like too waste
 
 ## todo
@@ -11,4 +11,6 @@
 
 ## Usage
 
-Just fill public/text with `[number].txt` which is your poem.
+Just fill public/text with `[number].txt`.
+
+It's not only a poems' colletor, but also text's warm home.
