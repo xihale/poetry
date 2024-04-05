@@ -5,9 +5,9 @@
 
 ## todo
 
-- [ ] commits for poems
-  my wish is use <N> to highlight the footnote.
-
+- [ ] MDX support
+  make it more complex then deal with my all text.
+  for order, export the update timestamp?
 
 ## Usage
 
