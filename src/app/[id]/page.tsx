@@ -24,7 +24,7 @@ export default function Poem({ params }: { params: { id:number } }) {
         <div>{poem.extra}</div>
       </div>
       <div className={styles.content}>
-        {poem.content.split('\n').map((line) => (<>{line}<br/></>))}
+        {poem.content.split('\n').map((line, i) => (<span key={i}>{line}<br/></span>))}
       </div>
     </div>
   </div>
