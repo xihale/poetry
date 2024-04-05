@@ -10,8 +10,8 @@
   z-index: 10;
   top: 0;
   width: 50%;
-  min-width: 340px;
-  background: #ffffed;
+  min-width: 45rem;
+  background: var(--card-bg-color);
   margin: auto;
   padding: 1rem;
   border-radius: 0.5rem;
@@ -28,6 +28,7 @@
     min-width: 100vw;
     box-sizing: border-box;
     padding-right: 0.5rem;
+    border-radius: 0;
   }
 
   .meta{
@@ -54,7 +55,7 @@
 
 .back{
   z-index: 1;
-  background: #00000045;
+  background: var(--back-color);
   position: fixed;
   width: 100vw;
   height: 100vh;

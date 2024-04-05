@@ -15,7 +15,7 @@
   padding: 1.25rem;
   border-radius: 0.25rem;
   box-shadow: 0 4px 14px 0 rgba(0, 0, 0, 0.1);
-  background-color: #ffffed;
+  background-color: var(--card-bg-color);
 
   display: flex;
   flex-direction: column;
