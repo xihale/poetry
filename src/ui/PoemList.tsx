@@ -16,7 +16,7 @@ export default function PoemList(){
             <div>{d.extra}</div>
           </div>
           <div className={styles.brief}>
-            {d.brief.map((b,i)=>(<><span key={i}>{b}</span><br/></>))}
+            {d.brief.map((b,i)=>(<div key={i}>{b}<br/></div>))}
           </div>
           <span>......</span>
         </Link>
