@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>墨骨</title>
+<style>
+  :root{
+    --paper:#FBFAF7;
+    --ink:#0B0B0B;
+    --ink-70:#3E3E3E;
+    --ink-45:#757575;
+    --ink-25:#B4B0AA;
+    --hair:#1A1A1A;
+    --hair-soft:#D8D5CF;
+    --song:"Source Han Serif SC","Noto Serif CJK SC","Songti SC",SimSun,serif;
+    --kai:"LXGW WenKai","霞鹜文楷",KaiTi,serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--paper);}
+  body{
+    color:var(--ink);
+    font-family:var(--song);
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  .wrap{padding:0 44px;}
+
+  /* ---------- masthead ---------- */
+  .top{
+    display:flex;justify-content:space-between;align-items:baseline;
+    padding:26px 0 12px;
+    font-family:var(--kai);font-size:12px;letter-spacing:.34em;
+  }
+  .top .r{color:var(--ink-45);}
+  .rule{height:2px;background:var(--hair);}
+  .rule-thin{height:1px;background:var(--hair-soft);}
+
+  /* ---------- hero: full-width stacked ---------- */
+  .hero{padding:56px 0 0;position:relative;}
+  .hero .kicker{
+    font-family:var(--kai);font-size:12px;letter-spacing:.5em;
+    color:var(--ink-45);margin-bottom:30px;
+  }
+  .hero h1{
+    margin:0;
+    font-size:clamp(72px,15.2vw,232px);
+    line-height:.92;
+    letter-spacing:.02em;
+    font-weight:600;
+    white-space:nowrap;
+  }
+  .hero h1 .stroke{
+    -webkit-text-stroke:1.4px var(--ink);
+    color:transparent;
+  }
+  .hero h1 .hollow{color:var(--ink-25);}
+  .hero-foot{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    gap:40px;
+    padding:26px 0 34px;
+    align-items:start;
+  }
+  .hero-foot .meta{
+    font-family:var(--kai);font-size:12px;letter-spacing:.3em;color:var(--ink-45);
+  }
+  .hero-foot .meta b{color:var(--ink);font-weight:400;}
+  .hero-foot .excerpt{
+    font-size:14px;line-height:2.05;color:var(--ink-70);max-width:34em;
+  }
+
+  /* ---------- ink band ---------- */
+  .band{
+    margin-top:8px;
+    border-top:2px solid var(--hair);
+    border-bottom:1px solid var(--hair-soft);
+    padding:22px 0 24px;
+    display:flex;
+    gap:0;
+    overflow:hidden;
+  }
+  .band .cell{
+    flex:1 1 0;
+    padding:0 22px;
+    border-right:1px solid var(--hair-soft);
+    min-width:0;
+  }
+  .band .cell:first-child{padding-left:0;}
+  .band .cell:last-child{border-right:none;}
+  .band .n{
+    font-family:var(--kai);font-size:11px;letter-spacing:.2em;color:var(--ink-45);
+    display:block;margin-bottom:12px;
+  }
+  .band .t{
+    font-family:var(--kai);
+    font-size:clamp(17px,1.5vw,22px);
+    letter-spacing:.1em;line-height:1.35;
+    display:block;
+  }
+  .band .cell.dim .t{color:var(--ink-45);}
+  .band .cell.dim .n{color:var(--ink-25);}
+  .band-cap{
+    display:flex;justify-content:space-between;
+    font-family:var(--kai);font-size:11px;letter-spacing:.26em;color:var(--ink-45);
+    padding:10px 0 40px;
+  }
+
+  /* ---------- editorial index ---------- */
+  .idx-head{
+    display:flex;align-items:baseline;justify-content:space-between;
+    padding:12px 0 18px;border-top:2px solid var(--hair);
+  }
+  .idx-head h2{margin:0;font-family:var(--kai);font-size:13px;letter-spacing:.44em;font-weight:400;}
+  .idx-head span{font-family:var(--kai);font-size:11px;letter-spacing:.24em;color:var(--ink-45);}
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    column-gap:52px;
+  }
+  .row{
+    display:grid;
+    grid-template-columns:64px minmax(0,1fr) auto;
+    gap:18px;align-items:baseline;
+    padding:16px 0 14px;
+    border-bottom:1px solid var(--hair-soft);
+  }
+  .row .big{
+    font-size:30px;font-weight:600;letter-spacing:-.02em;
+    color:var(--ink-25);line-height:1;
+    font-variant-numeric:tabular-nums;
+    transition:color .22s ease;
+  }
+  .row .ttl{font-family:var(--kai);font-size:19px;letter-spacing:.08em;line-height:1.35;}
+  .row .sub{font-size:12px;color:var(--ink-45);margin-top:5px;letter-spacing:.04em;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .row .dt{font-family:var(--kai);font-size:11px;letter-spacing:.14em;color:var(--ink-45);}
+  .row:hover .big{color:var(--ink);}
+  @media (max-width:900px){
+    .wrap{padding:0 20px;}
+    .hero{padding:34px 0 0;}
+    .hero h1{white-space:normal;font-size:clamp(58px,19vw,120px);}
+    .hero-foot{grid-template-columns:1fr;gap:20px;}
+    .band{overflow-x:auto;}
+    .band .cell{flex:0 0 190px;}
+    .grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>诗 存</div>
+    <div class="r">XIHALE &nbsp;/&nbsp; 2022—2026 &nbsp;/&nbsp; 十三篇</div>
+  </div>
+  <div class="rule"></div>
+
+  <section class="hero">
+    <div class="kicker">最 新 一 篇 &nbsp; 12</div>
+    <h1><span>死与</span><span class="stroke">生</span></h1>
+    <div class="hero-foot">
+      <div class="meta">4.18 &nbsp;&nbsp;·&nbsp;&nbsp; <b>三十四行</b> &nbsp;&nbsp;·&nbsp;&nbsp; 时间倒序第一篇</div>
+      <div class="excerpt">有的人活着，他或将继续苟活；有的人死了，他早在是之前就死了。<br>也许不然。</div>
+    </div>
+  </section>
+
+  <div class="band">
+    <div class="cell"><span class="n">11</span><span class="t">绿色与褐色</span></div>
+    <div class="cell"><span class="n">10</span><span class="t">四年前的雨</span></div>
+    <div class="cell"><span class="n">09</span><span class="t">爱恨</span></div>
+    <div class="cell dim"><span class="n">08</span><span class="t">爱恨</span></div>
+    <div class="cell dim"><span class="n">07</span><span class="t">逝</span></div>
+    <div class="cell dim"><span class="n">06</span><span class="t">寄出的明信片</span></div>
+  </div>
+  <div class="band-cap">
+    <span>左 右 滑 动 查 看 更 早</span>
+    <span>点 题 名 通 读 全 文</span>
+  </div>
+
+  <div class="idx-head">
+    <h2>全 部 篇 目</h2>
+    <span>编号 · 题名 · 首行 · 日期</span>
+  </div>
+  <div class="grid">
+    <div class="row"><span class="big">12</span><span><span class="ttl">死与生</span><div class="sub">有的人活着，他或将继续苟活</div></span><span class="dt">4.18</span></div>
+    <div class="row"><span class="big">11</span><span><span class="ttl">绿色与褐色</span><div class="sub">教室旁，花开花落</div></span><span class="dt">4.12</span></div>
+    <div class="row"><span class="big">10</span><span><span class="ttl">四年前的雨</span><div class="sub">大雨倾倾而落，向上</div></span><span class="dt">4.10</span></div>
+    <div class="row"><span class="big">09</span><span><span class="ttl">爱恨</span><div class="sub">太复杂了，无以爱恨</div></span><span class="dt">4.5</span></div>
+    <div class="row"><span class="big">08</span><span><span class="ttl">爱恨</span><div class="sub">太复杂了，无法爱恨</div></span><span class="dt">4.5</span></div>
+    <div class="row"><span class="big">07</span><span><span class="ttl">逝</span><div class="sub">我们终将逝去，我们终将忘却</div></span><span class="dt">4.5</span></div>
+    <div class="row"><span class="big">06</span><span><span class="ttl">寄出的明信片</span><div class="sub">踌躇，犹豫，心痛，不舍</div></span><span class="dt">4.5</span></div>
+    <div class="row"><span class="big">05</span><span><span class="ttl">是否应该让井底之蛙看到天地之大？</span><div class="sub">思鲁迅之铁屋子有感</div></span><span class="dt">4.2</span></div>
+    <div class="row"><span class="big">04</span><span><span class="ttl">天空与星</span><div class="sub">他又望向星空，那是一片寂寥的黑</div></span><span class="dt">4.5</span></div>
+    <div class="row"><span class="big">03</span><span><span class="ttl">蔽月山房</span><div class="sub">山近月远觉月小</div></span><span class="dt">王守仁</span></div>
+    <div class="row"><span class="big">02</span><span><span class="ttl">刺刀与甲</span><div class="sub">狂风不断，血，不断地涌出</div></span><span class="dt">4.4</span></div>
+    <div class="row"><span class="big">01</span><span><span class="ttl">雨与磁针</span><div class="sub">乌云密布，随风飘浮</div></span><span class="dt">4.3</span></div>
+    <div class="row"><span class="big">00</span><span><span class="ttl">刺刀与风</span><div class="sub">刺刀刺入我的身躯</div></span><span class="dt">4.3</span></div>
+  </div>
+</div>
+</body>
+</html>

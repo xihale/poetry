@@ -1,0 +1,306 @@
+/* ==========================================================================
+   诗存 — design system
+   Direction: 简 · 谱. Paper, ink, one accent; two rule weights; kai for
+   titles, song for body. Nothing else.
+   ========================================================================== */
+
+/* --- self-hosted subsets (scripts/build-fonts.py) ------------------------- */
+@font-face {
+  font-family: 'WenKai';
+  src: url('~/assets/fonts/wenkai.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'SerifSC';
+  src: url('~/assets/fonts/serifsc.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* --- tokens --------------------------------------------------------------- */
+:root {
+  --paper: #f7f5f0;
+  --paper-sunk: #f1ede5;
+  --ink: #14110e;
+  --ink-soft: #6a6157;
+  --ink-faint: #9c9488;
+  --line: #dcd6cb;
+  --line-strong: #14110e;
+  --rub: #a33a2b;
+
+  --kai: 'WenKai', 'LXGW WenKai', 'Kaiti SC', STKaiti, KaiTi, serif;
+  --song: 'SerifSC', 'Source Han Serif SC', 'Noto Serif CJK SC', 'Songti SC', SimSun, serif;
+
+  --measure: 1360px;
+  --gut: 56px;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@media (max-width: 900px) {
+  :root {
+    --gut: 22px;
+  }
+}
+
+/* --- reset ---------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--paper);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--song);
+  font-size: 16px;
+  line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3,
+p,
+ol,
+ul,
+figure {
+  margin: 0;
+}
+
+ol,
+ul {
+  padding: 0;
+  list-style: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+:focus-visible {
+  outline: 2px solid var(--rub);
+  outline-offset: 3px;
+}
+
+/* --- layout --------------------------------------------------------------- */
+.page {
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: 0 var(--gut) 96px;
+}
+
+/* --- masthead ------------------------------------------------------------- */
+.masthead {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 24px;
+  padding: 34px 0 16px;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.masthead__mark {
+  font-family: var(--kai);
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: 0.34em;
+}
+
+.masthead__mark a {
+  display: inline-block;
+  padding: 4px 0;
+}
+
+.masthead__meta {
+  text-align: right;
+  font-family: var(--kai);
+  font-size: 12px;
+  line-height: 1.9;
+  letter-spacing: 0.26em;
+  color: var(--ink-soft);
+}
+
+.masthead__meta b {
+  font-weight: 400;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- section label -------------------------------------------------------- */
+.label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 30px 0 14px;
+}
+
+.label h2 {
+  font-family: var(--kai);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.42em;
+}
+
+.label span {
+  font-family: var(--kai);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  color: var(--ink-faint);
+}
+
+/* --- index rows ----------------------------------------------------------- */
+.rows {
+  border-top: 1px solid var(--line);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) minmax(0, 1.35fr) 92px;
+  gap: 28px;
+  align-items: baseline;
+  padding: 17px 0 15px;
+  border-bottom: 1px solid var(--line);
+  transition: background-color 0.18s var(--ease);
+}
+
+.row:hover {
+  background: var(--paper-sunk);
+}
+
+/* press: the row sinks onto the paper, immediately, then returns on release */
+.row:active {
+  background: #ece7de;
+  transition-duration: 80ms;
+}
+
+.row__no {
+  font-family: var(--kai);
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  color: var(--rub);
+  font-variant-numeric: tabular-nums;
+}
+
+.row__title {
+  font-family: var(--kai);
+  font-size: 23px;
+  line-height: 1.3;
+  letter-spacing: 0.1em;
+  transition: transform 0.18s var(--ease);
+}
+
+/* the title leads the press, so the row reads as one moving object */
+.row:hover .row__title {
+  transform: translateX(5px);
+}
+
+.row__line {
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.85;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.row__date {
+  font-family: var(--kai);
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  color: var(--ink-faint);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* an author, not a date: same slot, softer ink so it reads as attribution */
+.row__date--author {
+  color: var(--ink-faint);
+}
+
+/* the reader's last stop, marked with a rule rather than a colour alone */
+.row[data-current] {
+  background: var(--paper-sunk);
+}
+
+.row[data-current] .row__no::after {
+  content: '·';
+  margin-left: 0.3em;
+}
+
+@media (max-width: 900px) {
+  .row {
+    grid-template-columns: 44px minmax(0, 1fr) 76px;
+    gap: 14px;
+    padding: 15px 0 13px;
+  }
+
+  .row__line {
+    display: none;
+  }
+
+  .row__title {
+    font-size: 20px;
+  }
+}
+
+/* --- utility -------------------------------------------------------------- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- first-entry reveal --------------------------------------------------- */
+/* Applied by the page once on mount; see the pages for the stagger order. */
+.enter {
+  animation: enter 0.62s var(--ease) both;
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* --- reduced motion ------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

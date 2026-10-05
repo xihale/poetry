@@ -1,23 +1,16 @@
 {
   "name": "poetry",
-  "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "fonts": "python3 scripts/build-fonts.py"
   },
-  "dependencies": {
-    "@types/node": "20.12.4",
-    "@types/react": "18.2.74",
-    "@types/react-dom": "18.2.24",
-    "eslint": "8.57.0",
-    "eslint-config-next": "14.1.4",
-    "next": "14.1.4",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "sass": "^1.74.1",
-    "typescript": "5.4.3"
+  "devDependencies": {
+    "nuxt": "^4.5.2"
   }
 }
