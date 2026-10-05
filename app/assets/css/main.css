@@ -118,9 +118,9 @@ button {
 
 .leaf__inner {
   /* hug the longest line, so a short poem sits dead centre and a long one only
-     wraps once it has genuinely run out of room */
-  width: fit-content;
-  max-width: min(46rem, 100%);
+     wraps once it has genuinely run out of room; the cap is wide enough to
+     keep a 30-character 诗经 line on one line at desktop width */
+  max-width: min(62rem, 100%);
   margin: 0 auto;
 }
 
@@ -234,6 +234,11 @@ button {
   color: var(--faint);
 }
 
+/* the active choice is the one thing up here worth reading */
+.filter-note .active {
+  color: var(--ink);
+}
+
 .filter-note button {
   color: var(--faint);
   letter-spacing: 0.3em;
@@ -261,7 +266,7 @@ button {
   z-index: 20;
   background: var(--paper);
   overflow-y: auto;
-  padding: 6vh 1.5rem 12vh;
+  padding: 6vh 1.5rem 0;
 }
 
 .panel__inner {
@@ -321,21 +326,28 @@ button {
 }
 
 .chip__n {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   letter-spacing: 0;
-  color: var(--ghost);
+  color: var(--faint);
   margin-left: 0.4em;
   vertical-align: 0.25em;
 }
 
 .chip[aria-pressed='true'] .chip__n {
-  color: var(--faint);
+  color: var(--ink);
 }
 
+/* pinned to the bottom of the panel: on a phone the axes run past the fold,
+   and a reader must always be able to get back out */
 .panel__foot {
-  margin-top: 4rem;
+  position: sticky;
+  bottom: 0;
+  margin-top: 3.5rem;
+  padding: 1.2rem 0 1.4rem;
   display: flex;
   gap: 2rem;
+  background: var(--paper);
+  box-shadow: 0 -1.5rem 1.5rem var(--paper);
 }
 
 .panel__foot button {

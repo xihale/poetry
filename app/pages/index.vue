@@ -96,7 +96,25 @@ function onScroll() {
 }
 
 function onKey(e: KeyboardEvent) {
-  if (e.key === 'Escape') panel.value = false
+  if (e.key === 'Escape') {
+    panel.value = false
+    return
+  }
+  if (panel.value) return
+  // the stream is its own scroll container, so the browser's default paging
+  // keys never reach it — scrolling has to be driven here
+  const el = stream.value
+  if (!el) return
+  const page = el.clientHeight
+  if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
+    e.preventDefault()
+    el.scrollBy({ top: page, behavior: 'smooth' })
+  } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+    e.preventDefault()
+    el.scrollBy({ top: -page, behavior: 'smooth' })
+  } else if (e.key === 'ArrowRight') {
+    reset()
+  }
 }
 
 // the corpus is fetched on the client, so the first poem is drawn on arrival
@@ -110,7 +128,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 <template>
   <div>
     <div class="filter-note">
-      <span v-if="activeLabel">{{ activeLabel }}</span>
+      <span v-if="activeLabel" class="active">{{ activeLabel }}</span>
       <button @click="reset">换一首</button>
     </div>
 

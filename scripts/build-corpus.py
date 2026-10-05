@@ -178,6 +178,11 @@ def build(refresh: bool) -> list[dict]:
         add(p["title"], "曹操", "汉", "曹操诗集", p["paragraphs"])
 
     for p in load("tang300", refresh):
+        # The upstream 唐诗三百首 file carries one Buddhist verse by 释明辩, a
+        # Song monk — a 颂古, not a Tang poem. Leaving it in misattributes a
+        # Song composition to the Tang, so it is dropped rather than relabelled.
+        if p.get("author") == "釋明辯" or p.get("author") == "释明辩":
+            continue
         add(p["title"], p.get("author") or "佚名", "唐", "唐诗三百首",
             p["paragraphs"])
 
