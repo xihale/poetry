@@ -67,19 +67,57 @@ def strip(tag: str) -> str:
     return html.unescape(re.sub(r"<[^>]+>", "", tag)).strip()
 
 
+# The site files a collection under four tabs. Only 诗文 is scraped for the
+# site; the other three are counted and reported so a silent cap cannot hide
+# behind a plausible-looking number.
+TABS = {"s": "诗文", "m": "名句", "d": "古籍", "a": "作者"}
+
+
+def _pager_next(doc: str) -> str | None:
+    """The 下一页 href, if the site is offering one. guwendao server-renders
+    the whole list today, but if it ever starts paging we follow it rather
+    than quietly keeping page one."""
+    m = re.search(r'<a[^>]+href="([^"]*page=\d+[^"]*)"[^>]*>\s*下一页', doc)
+    return html.unescape(m.group(1)) if m else None
+
+
 def list_poems(cookie: str, user_id: str) -> list[tuple[str, str]]:
-    """Return [(key, title)] for every 诗文 in the collection, in site order."""
-    doc = get(f"{BASE}/user/wode.aspx?type=s&id={user_id}&sort=t", cookie)
-    out, seen = [], set()
-    for block in re.findall(r'<div class="contentLine">(.*?)</div>\s*</div>', doc, re.S):
-        m = re.search(r'href="/shiwenv_([0-9a-f]+)\.aspx"[^>]*>(.*?)</a>', block, re.S)
-        if not m or m.group(1) in seen:
-            continue
-        seen.add(m.group(1))
-        out.append((m.group(1), strip(m.group(2))))
+    """Return [(key, title)] for every 诗文 in the collection, in site order.
+
+    Follows the pager to exhaustion, so a collection larger than one page
+    cannot be truncated silently.
+    """
+    url = f"{BASE}/user/wode.aspx?type=s&id={user_id}&sort=t"
+    out, seen, pages = [], set(), 0
+    while url:
+        doc = get(url, cookie)
+        pages += 1
+        for block in re.findall(r'<div class="contentLine">(.*?)</div>\s*</div>', doc, re.S):
+            m = re.search(r'href="/shiwenv_([0-9a-f]+)\.aspx"[^>]*>(.*?)</a>', block, re.S)
+            if not m or m.group(1) in seen:
+                continue
+            seen.add(m.group(1))
+            out.append((m.group(1), strip(m.group(2))))
+        nxt = _pager_next(doc)
+        if not nxt:
+            break
+        url = nxt if nxt.startswith("http") else BASE + nxt
+        if pages > 200:  # a pager loop is a bug, not a collection
+            raise SystemExit(f"pager did not terminate after {pages} pages")
     if not out:  # the block regex is the fragile part; fail loudly, not silently
         raise SystemExit("no poems found — is the cookie still valid?")
+    if pages > 1:
+        print(f"  (walked {pages} pages)")
     return out
+
+
+def tab_counts(cookie: str, user_id: str) -> dict[str, int]:
+    """How many items the site says each collection tab holds."""
+    counts = {}
+    for t, label in TABS.items():
+        doc = get(f"{BASE}/user/collect.aspx?type={t}&sort=t", cookie)
+        counts[label] = len(re.findall("收藏时间：", doc))
+    return counts
 
 
 def parse_poem(doc: str) -> dict:
@@ -125,9 +163,12 @@ def main() -> None:
         raise SystemExit("pass --user-id")
 
     CACHE.mkdir(parents=True, exist_ok=True)
+    # report every tab the site keeps, so a collection larger than 诗文 is
+    # visible rather than assumed absent
+    counts = tab_counts(cookie, user_id)
+    print("collection: " + "  ".join(f"{k} {v}" for k, v in counts.items()))
     listed = list_poems(cookie, user_id)
-    print(f"collection: {len(listed)} 诗文")
-
+    print(f"  -> {len(listed)} 诗文 to fetch")
     cache = {}
     if OUT.exists() and not args.refresh:
         cache = {p["key"]: p for p in json.loads(OUT.read_text(encoding="utf-8"))}
