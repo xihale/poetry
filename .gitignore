@@ -22,8 +22,5 @@ yarn-error.log*
 .env.*
 !.env.example
 
-# design workspace: sources and evidence are kept, scratch is not
-/.design/.fonts-tmp
-
-# drafts are not published
-/content/draft
+# the raw anthology downloads are reproducible; public/corpus.json is committed
+/.cache

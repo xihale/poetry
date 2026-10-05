@@ -1,213 +1,151 @@
 <script setup lang="ts">
-import type { Poem } from '~/types/poem'
+import { EMPTY_FILTER, AXES } from '~/types/poem'
+import type { Axis, Filter, Leaf, Poem } from '~/types/poem'
 
-const { data: poems } = await usePoems()
-const { lastRead, restore } = useLastRead()
-
-const list = computed<Poem[]>(() => poems.value ?? [])
-const featured = computed(() => list.value[0] ?? null)
-const total = computed(() => list.value.reduce((sum, p) => sum + p.chars, 0))
-
-useSeoMeta({
-  title: '诗存 · XIHALE 个人诗稿',
-  description: computed(() =>
-    list.value.length
-      ? `共 ${list.value.length} 篇诗稿，最新一篇《${list.value[0].title}》。`
-      : '个人诗稿合集。',
-  ),
+useHead({
+  title: '拈一卷 · 中国古典诗选',
+  meta: [{ name: 'theme-color', content: '#faf9f6' }],
 })
 
-// The entrance plays once per session: returning from a poem should not replay it.
-const entered = useState('entered', () => false)
-const play = ref(false)
-onMounted(() => {
-  restore()
-  if (!entered.value) {
-    play.value = true
-    entered.value = true
+// The poem is chosen per visit, so there is nothing for the server to render:
+// the corpus is a static, cacheable file and the first poem fades in on arrival.
+const { data: corpus } = await useFetch<Poem[]>('/corpus.json', { server: false })
+
+const filter = ref<Filter>({ ...EMPTY_FILTER })
+const leaves = ref<Leaf[]>([])
+const panel = ref(false)
+const hintGone = ref(false)
+const stream = ref<HTMLElement>()
+
+const pool = computed(() => {
+  const all = corpus.value ?? []
+  return all.filter((p) => {
+    for (const { key } of AXES) {
+      const want = filter.value[key]
+      if (!want) continue
+      if (key === 'mood' ? !p.mood.includes(want) : key === 'view' ? !p.view.includes(want) : p[key] !== want) {
+        return false
+      }
+    }
+    return true
+  })
+})
+
+/** Drawn poems, so the same one never returns until the pool is exhausted. */
+let bag: Poem[] = []
+let taken: Poem[] = []
+
+function draw(): Poem | null {
+  if (!bag.length) {
+    const seen = new Set(taken.map((p) => p.id))
+    let rest = pool.value.filter((p) => !seen.has(p.id))
+    if (!rest.length) {
+      const last = taken[taken.length - 1]
+      taken = []
+      rest = pool.value.filter((p) => p.id !== last?.id)
+    }
+    bag = [...rest]
+    for (let i = bag.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[bag[i], bag[j]] = [bag[j], bag[i]]
+    }
   }
-})
-
-function delay(i: number) {
-  return play.value ? { animationDelay: `${Math.min(i, 8) * 55}ms` } : undefined
+  const p = bag.pop() ?? null
+  if (p) taken.push(p)
+  return p
 }
+
+/** Keep at least `min` poems in the stream, so there is always a next one. */
+function fill(min: number) {
+  while (taken.length < min) {
+    const poem = draw()
+    if (!poem) break
+    leaves.value.push(...leavesOf(poem))
+  }
+}
+
+function reset() {
+  bag = []
+  taken = []
+  leaves.value = []
+  fill(2)
+  stream.value?.scrollTo({ top: 0 })
+}
+
+const activeLabel = computed(() =>
+  AXES.filter((a) => filter.value[a.key])
+    .map((a) => `${a.label} ${filter.value[a.key]}`)
+    .join('　'),
+)
+
+function toggle(axis: Axis, value: string) {
+  filter.value[axis] = filter.value[axis] === value ? null : value
+  reset()
+}
+
+function clearAll() {
+  filter.value = { ...EMPTY_FILTER }
+  reset()
+}
+
+function onScroll() {
+  const el = stream.value
+  if (!el) return
+  if (!hintGone.value && el.scrollTop > 40) hintGone.value = true
+  if (el.scrollTop + el.clientHeight > el.scrollHeight - el.clientHeight) fill(taken.length + 1)
+}
+
+function onKey(e: KeyboardEvent) {
+  if (e.key === 'Escape') panel.value = false
+}
+
+// the corpus is fetched on the client, so the first poem is drawn on arrival
+watch(corpus, () => reset(), { immediate: true })
+
+onMounted(() => window.addEventListener('keydown', onKey))
+
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 </script>
 
 <template>
-  <div class="page">
-    <Masthead :count="list.length" />
-    <section v-if="featured" class="featured" :class="{ enter: play }" :style="delay(0)">
-      <div class="featured__main">
-        <div class="featured__index">
-          <span>最新</span>
-          <b>{{ featured.no }}</b>
-        </div>
-        <h1 class="featured__title">{{ featured.title }}</h1>
-        <div class="featured__meta">
-          {{ featured.extra || '无日期' }} &nbsp;&nbsp;·&nbsp;&nbsp; {{ featured.chars }} 字
-        </div>
-        <p class="featured__excerpt">{{ featured.excerpt }}</p>
-        <NuxtLink class="featured__read" :to="`/${featured.no}`">
-          通读全文
-          <span aria-hidden="true">→</span>
-        </NuxtLink>
-      </div>
-    </section>
-
-    <div class="label" :class="{ enter: play }" :style="delay(1)">
-      <h2>全 部 篇 目</h2>
-      <span>共 {{ list.length }} 篇</span>
+  <div>
+    <div class="filter-note">
+      <span v-if="activeLabel">{{ activeLabel }}</span>
+      <button @click="reset">换一首</button>
     </div>
 
-    <ol class="rows" :class="{ enter: play }" :style="delay(2)">
-      <PoemRow
-        v-for="p in list"
-        :key="p.id"
-        :poem="p"
-        :current="lastRead === p.id"
-      />
-    </ol>
+    <div ref="stream" class="stream" @scroll.passive="onScroll">
+      <PoemLeaf v-for="leaf in leaves" :key="leaf.key" :leaf="leaf" />
+      <p v-if="!leaves.length && corpus" class="empty">此卷无诗</p>
+    </div>
 
-    <Colophon :count="list.length" :total="total" />
+    <p class="edge hint" :class="{ gone: hintGone || leaves.length < 2 }">
+      向下滑动
+    </p>
+
+    <button class="edge facets-btn" @click="panel = true">分类</button>
+
+    <Transition name="panel">
+      <Facets
+        v-if="panel"
+        :pool="corpus ?? []"
+        :filter="filter"
+        @toggle="toggle"
+        @clear="clearAll"
+        @close="panel = false"
+      />
+    </Transition>
   </div>
 </template>
 
 <style scoped>
-/* The lead: one poem, full width, with its number set as a margin note on the
-   left and the verse excerpt on the right. */
-.featured {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(0, 22em);
-  column-gap: 56px;
-  row-gap: 20px;
-  align-items: start;
-  padding: 46px 0 42px;
-  border-bottom: 1px solid var(--line-strong);
-}
-
-.featured__main {
-  display: contents;
-}
-
-.featured__index {
-  grid-column: 1;
-  grid-row: 1 / span 3;
+.empty {
+  min-height: 100dvh;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 0.5em;
-  padding-top: 0.4em;
-  font-family: var(--kai);
-  font-size: 12px;
-  line-height: 1;
-  letter-spacing: 0.3em;
-  color: var(--rub);
-}
-
-.featured__index span {
-  writing-mode: vertical-rl;
-  text-orientation: upright;
-  letter-spacing: 0.34em;
-}
-
-.featured__index b {
-  font-weight: 400;
-  font-variant-numeric: tabular-nums;
-}
-
-.featured__title {
-  grid-column: 2;
-  grid-row: 1;
-  font-family: var(--kai);
-  font-size: clamp(46px, 6.4vw, 78px);
-  font-weight: 400;
-  line-height: 1.04;
-  letter-spacing: 0.06em;
-}
-
-.featured__meta {
-  grid-column: 2;
-  grid-row: 2;
-  font-family: var(--kai);
-  font-size: 13px;
-  letter-spacing: 0.22em;
-  color: var(--ink-soft);
-  font-variant-numeric: tabular-nums;
-}
-
-.featured__excerpt {
-  grid-column: 3;
-  grid-row: 1 / span 2;
-  padding-top: 0.7em;
-  font-size: 15px;
-  line-height: 2.05;
-  color: var(--ink-soft);
-}
-
-.featured__read {
-  grid-column: 2;
-  grid-row: 3;
-  justify-self: start;
-  margin-top: 6px;
-}
-
-
-.featured__read {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.6em;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--line-strong);
-  font-family: var(--kai);
-  font-size: 14px;
-  letter-spacing: 0.2em;
-  transition: border-color 0.18s var(--ease), color 0.18s var(--ease),
-    transform 0.18s var(--ease);
-}
-
-.featured__read:active {
-  transform: translateY(1px);
-}
-
-.featured__read span {
-  transition: transform 0.22s var(--ease);
-}
-
-.featured__read:hover {
-  border-color: var(--rub);
-  color: var(--rub);
-}
-
-.featured__read:hover span {
-  transform: translateX(4px);
-}
-
-@media (max-width: 900px) {
-  .featured {
-    grid-template-columns: auto minmax(0, 1fr);
-    column-gap: 20px;
-    row-gap: 16px;
-    padding: 30px 0 28px;
-  }
-
-  .featured__index {
-    grid-row: 1 / span 2;
-  }
-
-  .featured__title {
-    font-size: clamp(38px, 11vw, 54px);
-  }
-
-  /* the excerpt moves under the title, full width */
-  .featured__excerpt {
-    grid-column: 1 / -1;
-    grid-row: 3;
-    padding-top: 0;
-  }
-
-  .featured__read {
-    grid-column: 1 / -1;
-    grid-row: 4;
-  }
+  justify-content: center;
+  color: var(--ghost);
+  letter-spacing: 0.5em;
+  text-indent: 0.5em;
 }
 </style>

@@ -8,7 +8,7 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "fonts": "python3 scripts/build-fonts.py"
+    "corpus": "python3 scripts/build-corpus.py"
   },
   "devDependencies": {
     "nuxt": "^4.5.2"

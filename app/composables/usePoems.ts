@@ -1,28 +1,44 @@
-import type { Ref } from 'vue'
-import type { Poem } from '~/types/poem'
+import type { Leaf, Poem } from '~/types/poem'
 
-/**
- * The poem index. Fetched once under a shared key: the first caller performs the
- * request, every other page reuses the same payload entry.
- */
-export function usePoems() {
-  return useAsyncData<Poem[]>('poems', () => $fetch('/api/poems'), {
-    default: () => [],
-  })
-}
+/** How many characters fit on one leaf before the poem is split. */
+const LEAF_CHARS = 108
 
-/** Everything a reading page needs, derived from the already-resolved index. */
-export function usePoemView(poems: Ref<Poem[]>, id: string) {
-  return computed(() => {
-    const n = Number.parseInt(id, 10)
-    const list = poems.value ?? []
-    const i = list.findIndex((p) => p.id === n)
-    // The list runs newest first, so the previous poem is the newer neighbour.
-    return {
-      list,
-      poem: i === -1 ? null : list[i]!,
-      prev: i > 0 ? list[i - 1]! : null,
-      next: i !== -1 && i < list.length - 1 ? list[i + 1]! : null,
-    }
-  })
+/** Split a poem into leaves, breaking at a blank line, a stanza, or a couplet. */
+export function leavesOf(poem: Poem): Leaf[] {
+  const lines = poem.text.split('\n')
+  if (poem.chars <= LEAF_CHARS) {
+    return [{ poem, lines, part: 0, parts: 1, key: `${poem.id}-0` }]
+  }
+
+  const groups: string[][] = []
+  let group: string[] = []
+  let size = 0
+
+  const flush = () => {
+    if (group.length) groups.push(group)
+    group = []
+    size = 0
+  }
+
+  for (const line of lines) {
+    const n = line.length
+    if (size && size + n > LEAF_CHARS) flush()
+    group.push(line)
+    size += n
+  }
+  flush()
+
+  // a two-line tail is a widow: fold it back into the previous leaf
+  if (groups.length > 1 && groups[groups.length - 1].length < 3) {
+    const tail = groups.pop()!
+    groups[groups.length - 1].push(...tail)
+  }
+
+  return groups.map((g, i) => ({
+    poem,
+    lines: g,
+    part: i,
+    parts: groups.length,
+    key: `${poem.id}-${i}`,
+  }))
 }
