@@ -3,7 +3,7 @@ import { EMPTY_FILTER, AXES } from '~/types/poem'
 import type { Axis, Filter, Leaf, Poem } from '~/types/poem'
 
 useHead({
-  title: '拈一卷 · 中国古典诗选',
+  title: '拈一卷 · 诗单',
   meta: [{ name: 'theme-color', content: '#faf9f6' }],
 })
 

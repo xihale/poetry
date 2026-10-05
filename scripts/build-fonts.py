@@ -39,10 +39,10 @@ FALLBACK_RARE = Path("/usr/share/fonts/TTF/LXGWWenKai-Regular.ttf")
 
 UI_STRINGS = [
     "拈一卷中国古典诗选",
-    "分类全部诗集诗人时代体裁情绪视角篇幅换一首",
+    "分类全部作者时代体裁情绪视角篇幅换一首",
     "向下滑动合卷清除其余",
-    "先秦汉唐宋清诗经楚辞曹操诗集唐诗三百首宋词三百首纳兰词",
-    "四言五言七言杂言骚体词短中长",
+    "先秦秦汉魏晋南北朝隋唐五代宋辽金元明清近现代",
+    "四言五言七言杂言词赋文现代短中长",
     "愁思独欢闲壮惊我你他谁天地",
     "佚名",
     "、。，；：？！“”‘’（）《》〈〉【】—…·　「」『』",
@@ -56,7 +56,12 @@ def corpus_chars() -> set[str]:
         raise SystemExit("run scripts/build-corpus.py first")
     chars: set[str] = set()
     for poem in json.loads(CORPUS.read_text(encoding="utf-8")):
-        chars |= set(poem["title"]) | set(poem["author"]) | set(poem["text"])
+        # era and form are drawn on the leaf, so they need glyphs too — this is
+        # what the label 魏晋 was missing before
+        for field in ("title", "author", "era", "form", "text"):
+            chars |= set(poem[field])
+        for field in ("mood", "view"):
+            chars |= set("".join(poem[field]))
     return chars
 
 
@@ -64,7 +69,10 @@ def wanted() -> str:
     chars = corpus_chars()
     for s in UI_STRINGS:
         chars |= set(s)
-    chars = {c for c in chars if c.isprintable() and c != "\n"}
+    # str.isprintable() excludes every Unicode separator, including U+3000 —
+    # but 赋 indent with 　, so dropping it would push those glyphs onto a
+    # fallback face and break the indent width
+    chars = {c for c in chars if (c.isprintable() or c == "\u3000") and c != "\n"}
     return "".join(sorted(chars))
 
 
@@ -145,27 +153,39 @@ def main() -> None:
     # 诗经 and 楚辞 use a few dozen Extension-B forms. Serve whichever of them
     # any local font actually draws — a partial companion still closes most of
     # the gaps — and report the rest, which no font here can supply.
-    if gaps:
-        source = fetch_jigmo(tmp)
-        if source is None and FALLBACK_RARE.exists():
-            source = FALLBACK_RARE
-        if source is None:
-            print(f"  · {len(gaps)} Ext-B forms: no source available; they fall "
-                  f"back to the reader's system font")
-        else:
-            absent = set(missing(source, "".join(gaps)))
-            coverable = [c for c in gaps if c not in absent]
-            if coverable:
-                rare_file = tmp / "rare.txt"
-                rare_file.write_text("".join(coverable), encoding="utf-8")
-                rare_size = subset(source, OUT / "rare.woff2", rare_file)
-                print(f"rare.woff2              {rare_size/1024:8.1f} KiB  "
-                      f"({len(coverable)}/{len(gaps)} Ext-B forms Song lacks, "
-                      f"from {source.name})")
-            if len(coverable) < len(gaps):
-                print(f"  · {len(gaps) - len(coverable)} Ext-B forms have no "
-                      f"source here; they fall back to the reader's system font")
+    if not gaps:
+        # Nothing in this corpus needs the companion face. Leaving the file
+        # behind would ship a download the browser never has a use for.
+        stale = OUT / "rare.woff2"
+        if stale.exists():
+            stale.unlink()
+            print("rare.woff2              removed (no Ext-B forms in this corpus)")
+        total = sum(p.stat().st_size for p in OUT.glob("*.woff2"))
+        print(f"total                   {total/1024:8.1f} KiB")
+        return
 
+    # A collection that does reach into Extension-B needs a companion face:
+    # serve whichever forms any local font actually draws — a partial companion
+    # still closes most of the gaps — and report the rest.
+    source = fetch_jigmo(tmp)
+    if source is None and FALLBACK_RARE.exists():
+        source = FALLBACK_RARE
+    if source is None:
+        print(f"  · {len(gaps)} Ext-B forms: no source available; they fall "
+              f"back to the reader's system font")
+    else:
+        absent = set(missing(source, "".join(gaps)))
+        coverable = [c for c in gaps if c not in absent]
+        if coverable:
+            rare_file = tmp / "rare.txt"
+            rare_file.write_text("".join(coverable), encoding="utf-8")
+            rare_size = subset(source, OUT / "rare.woff2", rare_file)
+            print(f"rare.woff2              {rare_size/1024:8.1f} KiB  "
+                  f"({len(coverable)}/{len(gaps)} Ext-B forms Song lacks, "
+                  f"from {source.name})")
+        if len(coverable) < len(gaps):
+            print(f"  · {len(gaps) - len(coverable)} Ext-B forms have no "
+                  f"source here; they fall back to the reader's system font")
     total = sum(p.stat().st_size for p in OUT.glob("*.woff2"))
     print(f"total                   {total/1024:8.1f} KiB")
 

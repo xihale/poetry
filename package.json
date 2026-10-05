@@ -8,7 +8,9 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "corpus": "python3 scripts/build-corpus.py"
+    "corpus": "python3 scripts/build-corpus.py",
+    "fonts": "python3 scripts/build-fonts.py",
+    "poemlist": "python3 scripts/fetch-poemlist.py"
   },
   "devDependencies": {
     "nuxt": "^4.5.2"

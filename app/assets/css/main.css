@@ -7,16 +7,9 @@
    kept at the edge of legibility and only the reading surface is loud.
    ───────────────────────────────────────────────────────────────────────── */
 
-/* Song carries the site. 'Rare' covers only the Extension-B range, where a few
-   dozen 诗经 / 楚辞 forms live that Song does not draw; anywhere else the
-   browser never even fetches it. Beyond that, the reader's own system font is
-   the last resort. */
-@font-face {
-  font-family: 'Rare';
-  src: url('/fonts/rare.woff2') format('woff2');
-  unicode-range: U+20000-3FFFF;
-  font-display: swap;
-}
+/* Song carries the site. A collection that reaches into Extension-B would want
+   a companion face for the forms Song does not draw; build-fonts.py emits one
+   only when the corpus actually needs it, so there is nothing to load here. */
 
 @font-face {
   font-family: 'Song';
@@ -33,7 +26,7 @@
   --ghost: #b8b2a6;
   --line: #e4e0d8;
 
-  --song: 'Song', 'Rare', 'Songti SC', 'STSong', 'Noto Serif CJK SC', serif;
+  --song: 'Song', 'Songti SC', 'STSong', 'Noto Serif CJK SC', serif;
 
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
 }

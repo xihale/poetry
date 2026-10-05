@@ -34,9 +34,9 @@ onMounted(() => {
       <header v-if="props.leaf.part === 0" class="leaf__head">
         <h2 class="leaf__title">{{ props.leaf.poem.title }}</h2>
         <p class="leaf__by">
-          <span v-if="!props.leaf.poem.solo && props.leaf.poem.author !== '佚名'">
+          <span v-if="props.leaf.poem.author !== '佚名'">
             {{ props.leaf.poem.author }}<span class="leaf__dot">·</span>
-          </span>{{ props.leaf.poem.book }}
+          </span>{{ props.leaf.poem.era }}
         </p>
       </header>
       <p v-else class="leaf__cont">

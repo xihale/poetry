@@ -1,47 +1,33 @@
 #!/usr/bin/env python3
-"""Build the site corpus from canonical Chinese poetry anthologies.
+"""Build the site corpus from an exported 古文岛 collection.
 
-Sources (all from the MIT-licensed chinese-poetry dataset):
-    诗经          305 首   先秦 · 佚名
-    楚辞           65 篇   先秦 · 屈原等
-    曹操诗集       26 首   汉   · 曹操
-    唐诗三百首    366 首   唐   · 86 位诗人
-    宋词三百首    280 首   宋   · 83 位词人
-    纳兰词        258 首   清   · 纳兰性德
+Input is the export produced by scripts/fetch-poemlist.py; run that first. This
+script only shapes and classifies — it never touches the network.
 
-Writes public/corpus.json. Facets are derived at runtime from the corpus, so
-this file stays the single source of truth.
+Every axis is derived from the poem itself, never from a container it happened
+to sit in:
 
-    python3 scripts/build-corpus.py            # uses .cache/, fetches if cold
-    python3 scripts/build-corpus.py --refresh  # force re-download
-
-Axes marked "editorial" below (mood, perspective) are curated by this script,
-not by the source data: mood prefers the source's own tags when a collection
-has them, otherwise a conservative keyword lexicon; a poem with no confident
-match is simply absent from that facet rather than being guessed into one.
+  era   the dynasty of the author, taken from the poem page's 〔唐代〕 marker.
+        This is why 洛神赋 is 魏晋 and 圆圆曲 is 明 rather than "the book I
+        found it in".
+  form  read off the line and clause lengths, plus the 词牌 in the title.
+  mood  / view   lexicons — a poem joins 「愁」 because it contains 愁/泪/断肠,
+        not because a model judged it sad, so every tag is checkable against
+        the text on screen.
 """
 from __future__ import annotations
 
 import argparse
 import json
 import re
-import sys
-import urllib.parse
-import urllib.request
+from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-CACHE = ROOT / ".cache" / "corpus"
+IN = ROOT / ".cache" / "guwendao" / "poemlist.json"
 OUT = ROOT / "public" / "corpus.json"
 
-RAW = "https://raw.githubusercontent.com/chinese-poetry/chinese-poetry/master"
-
 # ------------------------------------------------------------ editorial axes
-#
-# Both axes below are read off the text itself rather than inferred from it:
-# a poem joins 「愁」 because it contains 愁/泪/断肠, not because a model decided
-# it felt sad. That keeps every facet checkable against the poem on screen, and
-# it applies uniformly to all six collections (only 唐诗三百首 ships tags).
 
 MOOD_LEXICON: dict[str, tuple[str, ...]] = {
     "愁": ("愁", "恨", "怨", "悲", "伤", "哀", "苦", "叹", "泪", "泣", "啼",
@@ -67,37 +53,64 @@ VIEW_LEXICON: dict[str, tuple[str, ...]] = {
              "苍生", "九州", "六合"),
 }
 
-FORM_BY_TAG = {
-    "五言律诗": "五言", "七言律诗": "七言",
-    "五言绝句": "五言", "七言绝句": "七言",
-    "五言古诗": "五言", "七言古诗": "七言",
+# 词牌 are a closed class, which makes them a reliable signal: a title of the
+# form 词牌·题目 is a 词, and 无题·… is not, because 无题 is not a 词牌.
+CIPAI = {
+    "水仙子", "临江仙", "一丛花", "点绛唇", "浣溪沙", "蝶恋花", "鹧鸪天",
+    "菩萨蛮", "如梦令", "虞美人", "水调歌头", "念奴娇", "满江红", "声声慢",
+    "雨霖铃", "青玉案", "破阵子", "渔家傲", "江城子", "卜算子", "清平乐",
+    "忆秦娥", "西江月", "南乡子", "踏莎行", "苏幕遮", "少年游", "醉花阴",
+    "浪淘沙", "望江南", "长相思", "生查子", "木兰花", "玉楼春", "采桑子",
+    "诉衷情", "定风波", "行香子", "风流子", "喜迁莺", "桂枝香", "齐天乐",
+    "高阳台", "解语花", "六丑", "兰陵王", "瑞龙吟", "莺啼序", "疏影",
+    "暗香", "扬州慢", "一萼红", "八声甘州", "石州慢", "寿楼春", "三姝媚",
+    "贺新郎", "永遇乐", "洞仙歌", "琐窗寒", "法曲献仙音", "天仙子",
 }
 
+# 〔唐代〕 -> 唐
+ERA = {
+    "先秦": "先秦", "秦代": "秦", "两汉": "汉", "汉代": "汉", "魏晋": "魏晋",
+    "南北朝": "南北朝", "隋代": "隋", "唐代": "唐", "五代": "五代",
+    "宋代": "宋", "辽代": "辽", "金朝": "金", "金代": "金", "元代": "元",
+    "明代": "明", "清代": "清", "近现代": "近现代",
+}
 
-def _hits(text: str, lexicon: dict[str, tuple[str, ...]], cap: int) -> list[str]:
-    found = [k for k, words in lexicon.items() if any(w in text for w in words)]
-    return found[:cap]
+CJK = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
 
 
-def guess_form(lines: list[str], book: str) -> str:
-    """Verse form from the actual line lengths, or 词 for the 词 collections."""
-    if book in ("宋词三百首", "纳兰词"):
+def clause_lengths(text: str) -> list[int]:
+    """Lengths of the metrical clauses, split on punctuation, ignoring non-CJK."""
+    out = []
+    for seg in re.split(r"[，。；！？、：\n]", text):
+        n = len(CJK.findall(seg))
+        if n:
+            out.append(n)
+    return out
+
+
+def guess_form(title: str, era: str | None, text: str) -> str:
+    """Verse form from the title and the actual clause lengths."""
+    head = title.split("·")[0].strip()
+    if "·" in title and head in CIPAI:
         return "词"
-    if book == "楚辞":
-        return "骚体"
-    lens: list[int] = []
-    for ln in lines:
-        for seg in re.split(r"[，。；！？、]", ln):
-            seg = seg.strip()
-            if seg:
-                lens.append(len(seg))
+
+    lens = clause_lengths(text)
     if not lens:
         return "古体"
-    common = max(set(lens), key=lens.count)
-    # mixed line lengths are 杂言; the counts here are overwhelmingly regular
-    if lens.count(common) / len(lens) < 0.6:
-        return "杂言"
-    return {4: "四言", 5: "五言", 7: "七言"}.get(common, "杂言")
+
+    # a run of unbroken prose: 洛神赋, 破窑赋, 滕王阁序, 焚鼠毁庐, 施氏食狮史
+    longest_line = max((len(CJK.findall(ln)) for ln in text.split("\n")), default=0)
+    if longest_line > 60:
+        return "赋" if title.endswith("赋") else "文"
+
+    for n, name in ((7, "七言"), (5, "五言"), (4, "四言")):
+        if lens.count(n) / len(lens) >= 0.75:
+            return name
+
+    # irregular, and written after the classical forms fell out of use
+    if era == "近现代":
+        return "现代"
+    return "杂言"
 
 
 def length_band(chars: int) -> str:
@@ -107,139 +120,66 @@ def length_band(chars: int) -> str:
         return "中"
     return "长"
 
-# ---------------------------------------------------------------- conversion
 
-def t2s(text: str) -> str:
-    """Traditional -> simplified, for the collections that ship traditional."""
-    try:
-        from opencc import OpenCC
-    except ImportError:  # pragma: no cover
-        raise SystemExit("need opencc: pacman -S opencc  /  pip install opencc")
-    global _cc
-    try:
-        _cc
-    except NameError:
-        _cc = OpenCC("t2s")
-    return _cc.convert(text)
+def hits(text: str, lexicon: dict[str, tuple[str, ...]], cap: int) -> list[str]:
+    found = [k for k, words in lexicon.items() if any(w in text for w in words)]
+    return found[:cap]
 
 
-# ------------------------------------------------------------------ assembly
+def build() -> list[dict]:
+    if not IN.exists():
+        raise SystemExit(f"{IN.relative_to(ROOT)} missing — run scripts/fetch-poemlist.py first")
+    raw = json.loads(IN.read_text(encoding="utf-8"))
 
-def load(name: str, refresh: bool) -> list:
-    CACHE.mkdir(parents=True, exist_ok=True)
-    path = CACHE / f"{name}.json"
-    if refresh or not path.exists():
-        url = SOURCES[name]
-        with urllib.request.urlopen(url, timeout=60) as r:
-            path.write_bytes(r.read())
-        print(f"  fetched {name} ({path.stat().st_size / 1024:.0f} KiB)")
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def clean_lines(raw: list[str]) -> list[str]:
-    out = []
-    for ln in raw:
-        ln = t2s(ln).strip()
-        if ln:
-            out.append(ln)
-    return out
-
-
-def build(refresh: bool) -> list[dict]:
     poems: list[dict] = []
-
-    def add(title, author, era, book, lines):
-        lines = clean_lines(lines)
-        if not lines:
-            return
-        text = "\n".join(lines)
+    for rec in raw:
+        text = rec["text"].strip()
+        if not text:
+            continue
         body = text.replace("\n", "")
-        chars = len(re.sub(r"[^\u4e00-\u9fff]", "", body))
+        chars = len(CJK.findall(body))
+        # guwendao appends its own doubts to the name, e.g. 吕蒙正(存疑)
+        author = re.sub(r"[（(][^）)]*[）)]", "", rec["author"]).strip() or "佚名"
+        era = ERA.get(rec.get("era") or "", rec.get("era"))
         poems.append({
-            "title": t2s(title).strip(),
-            "author": t2s(author).strip(),
+            "title": rec["title"].strip(),
+            "author": author,
             "era": era,
-            "book": book,
-            "form": guess_form(lines, book),
-            "mood": _hits(body, MOOD_LEXICON, 3),
-            "view": _hits(body, VIEW_LEXICON, 2),
+            "form": guess_form(rec["title"], era, text),
+            "mood": hits(body, MOOD_LEXICON, 3),
+            "view": hits(body, VIEW_LEXICON, 2),
             "len": length_band(chars),
             "text": text,
             "chars": chars,
         })
 
-    for p in load("shijing", refresh):
-        add(p["title"], "佚名", "先秦", "诗经", p["content"])
-
-    for p in load("chuci", refresh):
-        add(p["title"], p.get("author") or "佚名", "先秦", "楚辞", p["content"])
-
-    for p in load("caocao", refresh):
-        add(p["title"], "曹操", "汉", "曹操诗集", p["paragraphs"])
-
-    for p in load("tang300", refresh):
-        # The upstream 唐诗三百首 file carries one Buddhist verse by 释明辩, a
-        # Song monk — a 颂古, not a Tang poem. Leaving it in misattributes a
-        # Song composition to the Tang, so it is dropped rather than relabelled.
-        if p.get("author") == "釋明辯" or p.get("author") == "释明辩":
-            continue
-        add(p["title"], p.get("author") or "佚名", "唐", "唐诗三百首",
-            p["paragraphs"])
-
-    for p in load("song300", refresh):
-        add(p["rhythmic"], p.get("author") or "佚名", "宋", "宋词三百首",
-            p["paragraphs"])
-
-    for p in load("nalan", refresh):
-        add(p["title"], p.get("author") or "纳兰性德", "清", "纳兰词", p["para"])
-
+    for i, p in enumerate(poems):
+        p["id"] = i
     return poems
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--refresh", action="store_true")
+    ap.add_argument("--check", action="store_true", help="report only, do not write")
     args = ap.parse_args()
 
-    poems = build(args.refresh)
-
-    # drop exact repeats (the collections overlap a little)
-    seen: set[tuple[str, str]] = set()
-    unique = []
+    poems = build()
     for p in poems:
-        key = (p["title"], p["text"])
-        if key in seen:
-            continue
-        seen.add(key)
-        unique.append(p)
+        print(f"  {p['era'] or '?':<4} {p['form']:<4} {p['len']:<2} "
+              f"{','.join(p['mood']) or '-':<8} {p['title']} — {p['author']}")
 
-    # stable ids
-    for i, p in enumerate(unique):
-        p["id"] = i
-    # a collection with one author (曹操诗集, 纳兰词) already implies the poet,
-    # so a leaf can name the book alone instead of repeating both
-    authors_by_book: dict[str, set[str]] = {}
-    for p in unique:
-        authors_by_book.setdefault(p["book"], set()).add(p["author"])
-    for p in unique:
-        p["solo"] = len(authors_by_book[p["book"]]) == 1
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps(unique, ensure_ascii=False, separators=(",", ":")),
-                   encoding="utf-8")
+    print(f"\n{len(poems)} poems")
+    for axis in ("era", "form", "len"):
+        counts = Counter(p[axis] for p in poems)
+        print(f"  {axis}: " + ", ".join(f"{k} {v}" for k, v in counts.most_common()))
+    print(f"  mood tagged {sum(1 for p in poems if p['mood'])}/{len(poems)}, "
+          f"view tagged {sum(1 for p in poems if p['view'])}/{len(poems)}")
+    print(f"  authors: {len({p['author'] for p in poems})}")
 
-    books: dict[str, int] = {}
-    eras: dict[str, int] = {}
-    for p in unique:
-        books[p["book"]] = books.get(p["book"], 0) + 1
-        eras[p["era"]] = eras.get(p["era"], 0) + 1
-    tagged = sum(1 for p in unique if p["mood"])
-    viewed = sum(1 for p in unique if p["view"])
-
-    print(f"\n{len(unique)} poems  ({OUT.stat().st_size / 1024:.0f} KiB)")
-    print("  books:", ", ".join(f"{k} {v}" for k, v in books.items()))
-    print("  eras: ", ", ".join(f"{k} {v}" for k, v in sorted(eras.items())))
-    print(f"  mood tagged {tagged}/{len(unique)}, perspective tagged {viewed}/{len(unique)}")
-    print(f"  poets: {len({p['author'] for p in unique})}")
+    if not args.check:
+        OUT.write_text(json.dumps(poems, ensure_ascii=False, separators=(",", ":")),
+                       encoding="utf-8")
+        print(f"  -> {OUT.relative_to(ROOT)} ({OUT.stat().st_size / 1024:.0f} KiB)")
 
 
 if __name__ == "__main__":

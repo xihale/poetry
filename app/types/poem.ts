@@ -1,15 +1,11 @@
 export interface Poem {
   id: number
   title: string
-  author: string
   era: string
-  book: string
   form: string
   mood: string[]
   view: string[]
-  len: string
-  /** True when the collection has a single author, so the poet name is implied. */
-  solo: boolean
+  /** CJK character count, used for the length band and for splitting leaves. */
   chars: number
 }
 
@@ -21,20 +17,11 @@ export interface Leaf {
   parts: number
   key: string
 }
-
-export type Axis =
-  | 'book'
-  | 'era'
-  | 'author'
-  | 'form'
-  | 'mood'
-  | 'view'
-  | 'len'
+export type Axis = 'era' | 'author' | 'form' | 'mood' | 'view' | 'len'
 
 export type Filter = Record<Axis, string | null>
 
 export const EMPTY_FILTER: Filter = {
-  book: null,
   era: null,
   author: null,
   form: null,
@@ -44,9 +31,8 @@ export const EMPTY_FILTER: Filter = {
 }
 
 export const AXES: { key: Axis; label: string }[] = [
-  { key: 'book', label: '诗集' },
   { key: 'era', label: '时代' },
-  { key: 'author', label: '诗人' },
+  { key: 'author', label: '作者' },
   { key: 'form', label: '体裁' },
   { key: 'mood', label: '情绪' },
   { key: 'view', label: '视角' },

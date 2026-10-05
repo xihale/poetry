@@ -3,12 +3,32 @@ import type { Leaf, Poem } from '~/types/poem'
 /** How many characters fit on one leaf before the poem is split. */
 const LEAF_CHARS = 108
 
+/**
+ * A 赋 or 文 arrives as one unbroken line of 900-1500 characters, so splitting
+ * between lines alone would leave a single wall of text on one screen. Cut at
+ * the nearest clause mark instead, which is where the text already breathes.
+ */
+function splitLongLine(line: string): string[] {
+  if (line.length <= LEAF_CHARS) return [line]
+  const out: string[] = []
+  let rest = line
+  while (rest.length > LEAF_CHARS) {
+    let cut = -1
+    for (const m of rest.slice(0, LEAF_CHARS + 1).matchAll(/[，。；！？、]/g)) {
+      // never cut so early that a leaf holds a stub
+      if (m.index !== undefined && m.index >= LEAF_CHARS * 0.6) cut = m.index + 1
+    }
+    if (cut < 0) cut = LEAF_CHARS
+    out.push(rest.slice(0, cut))
+    rest = rest.slice(cut)
+  }
+  if (rest) out.push(rest)
+  return out
+}
+
 /** Split a poem into leaves, breaking at a blank line, a stanza, or a couplet. */
 export function leavesOf(poem: Poem): Leaf[] {
-  const lines = poem.text.split('\n')
-  if (poem.chars <= LEAF_CHARS) {
-    return [{ poem, lines, part: 0, parts: 1, key: `${poem.id}-0` }]
-  }
+  const lines = poem.text.split('\n').flatMap(splitLongLine)
 
   const groups: string[][] = []
   let group: string[] = []

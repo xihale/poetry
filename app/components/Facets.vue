@@ -20,10 +20,10 @@ const expanded = ref<Set<Axis>>(new Set())
 
 /** Canonical orderings, so the facets read the way a reader expects. */
 const ORDER: Partial<Record<Axis, string[]>> = {
-  era: ['先秦', '汉', '唐', '宋', '清'],
+  era: ['先秦', '秦', '汉', '魏晋', '南北朝', '隋', '唐', '五代', '宋', '辽',
+        '金', '元', '明', '清', '近现代'],
   len: ['短', '中', '长'],
-  book: ['诗经', '楚辞', '曹操诗集', '唐诗三百首', '宋词三百首', '纳兰词'],
-  form: ['四言', '五言', '七言', '杂言', '骚体', '词'],
+  form: ['四言', '五言', '七言', '杂言', '词', '赋', '文', '现代'],
   mood: ['愁', '思', '独', '欢', '闲', '壮', '惊'],
   view: ['我', '你', '他', '谁', '天地'],
 }
