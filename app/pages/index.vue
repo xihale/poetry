@@ -185,12 +185,9 @@ function reset() {
   gen++
   repool()
   // a new draw starts at the top, with the paging state cleared so the first
-  // gesture after it is not swallowed by the turn that just happened
-  turning = false
-  goal = 0
+  // gesture after it is not swallowed by the gesture that just happened
   spent = false
   acc = 0
-  clearTimeout(turnTimer)
   stream.value?.scrollTo({ top: 0 })
   void fill(2)
 }
@@ -305,11 +302,8 @@ async function showPoem(id: number) {
   shown = 1
   skip = id
   leaves.value = leavesOf(await corpus.value!.poem(id))
-  turning = false
-  goal = 0
   spent = false
   acc = 0
-  clearTimeout(turnTimer)
   stream.value?.scrollTo({ top: 0 })
   // top the stream up behind it
   void fill(2)
@@ -417,42 +411,28 @@ async function showPanel() {
 
 /** ── turning the page ─────────────────────────────────────────────────────
  * The stream is read one screen at a time: a wheel notch, a trackpad push or
- * a swipe turns exactly one page, and neither the tail of a trackpad's
- * inertia nor a hard spin of the wheel queues up more. A gesture is over once
- * the input has been quiet for GAP; only then does the next one count. Pages
- * are one viewport tall, so a leaf taller than the screen takes two gestures
- * to read through, the way a book does.
+ * a swipe replaces the screen outright — no slide, the old text is gone and
+ * the next is there. Neither the tail of a trackpad's inertia nor a hard spin
+ * of the wheel queues up more: a gesture is over once the input has been
+ * quiet for GAP; only then does the next one count. Pages are one viewport
+ * tall, so a leaf taller than the screen takes two gestures to read through,
+ * the way a book does.
  */
 const STEP = 24 // accumulated intent, in px, that counts as a gesture
 const GAP = 140 // ms of silence that separates two gestures
-const LOCK = 560 // ms a page turn takes; input during it is swallowed
 const SWIPE = 28 // px of touch travel that counts as a swipe
 
-let goal = 0
-let turning = false
-let turnTimer: ReturnType<typeof setTimeout> | undefined
 let acc = 0
 let lastEvent = 0
 let spent = false // this gesture has already turned a page
 
-const calm = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
-/** One page in `dir`. Measured from the target, not from the frame the last
- *  turn happens to be showing, so a turn interrupted mid-animation still lands
- *  a whole page on. */
+/** One page in `dir`. The jump is instant by design: the swap is the point,
+ *  and an animated slide is only a delay in front of it. */
 function turn(dir: number) {
   const el = stream.value
   if (!el) return
   const max = Math.max(0, el.scrollHeight - el.clientHeight)
-  const from = turning ? goal : el.scrollTop
-  goal = Math.min(max, Math.max(0, from + dir * el.clientHeight))
-  turning = true
-  el.scrollTo({ top: goal, behavior: calm() ? 'auto' : 'smooth' })
-  clearTimeout(turnTimer)
-  turnTimer = setTimeout(() => {
-    turning = false
-    goal = el.scrollTop
-  }, LOCK)
+  el.scrollTop = Math.min(max, Math.max(0, el.scrollTop + dir * el.clientHeight))
 }
 
 /** Wheel travel in px: lines and pages arrive as counts, not pixels. */
@@ -503,7 +483,6 @@ function onTouchMove(e: TouchEvent) {
 function onScroll() {
   const el = stream.value
   if (!el) return
-  if (!turning) goal = el.scrollTop
   if (menu.value) closeMenu()
   if (el.scrollTop + el.clientHeight > el.scrollHeight - el.clientHeight) {
     void fill(shown + 1)
@@ -601,9 +580,10 @@ const failure = ref('')
  *
  * Scrolling counts as movement: the wheel is a pointer event, and a reader who
  * is turning pages should be able to reach for a control without first jiggling
- * the mouse. A touch device never sees any of this — the stylesheet only applies
- * the hidden state under `hover: hover`, where there is an idle pointer to wait
- * for, and `cursor: none` means nothing where there is no cursor.
+ * the mouse. A touch device has no pointer to move, so there the controls
+ * surface on a finger — a tap or the start of a swipe — and doze off again on
+ * the same timer. `cursor: none` means nothing where there is no cursor, so
+ * hiding the pointer stays a desktop concern by nature.
  */
 const AWAKE = 2600
 const awake = ref(false)
@@ -648,6 +628,9 @@ onMounted(async () => {
   window.addEventListener('hashchange', onPathChange)
   window.addEventListener('pointermove', wake, { passive: true })
   window.addEventListener('pointerdown', wake, { passive: true })
+  // a finger has no pointermove until it is down: touchstart is what a tap
+  // actually is, so it wakes the controls on its own
+  window.addEventListener('touchstart', wake, { passive: true })
   window.addEventListener('wheel', wake, { passive: true })
   // The page opens at rest — the controls are away until the reader moves — but
   // the pointer is the reader's own tool and is not taken from them on arrival.
@@ -679,6 +662,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('hashchange', onPathChange)
   window.removeEventListener('pointermove', wake)
   window.removeEventListener('pointerdown', wake)
+  window.removeEventListener('touchstart', wake)
   window.removeEventListener('wheel', wake)
   document.documentElement.classList.remove('cursor-idle')
   clearTimeout(doze)
@@ -686,7 +670,6 @@ onBeforeUnmount(() => {
   stream.value?.removeEventListener('touchstart', onTouchStart)
   stream.value?.removeEventListener('touchmove', onTouchMove)
   stream.value?.removeEventListener('touchend', onTouchEnd)
-  clearTimeout(turnTimer)
 })
 </script>
 
