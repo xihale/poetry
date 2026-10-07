@@ -33,7 +33,7 @@ function openedOn(): string {
 }
 
 useHead({
-  title: '白卷 · 中国诗选',
+  title: '诗',
   meta: [{ name: 'theme-color', content: '#faf9f6' }],
 })
 
