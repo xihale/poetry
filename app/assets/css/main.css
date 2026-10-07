@@ -275,36 +275,6 @@ button {
   height: 0.9em;
 }
 
-/* ── motion ────────────────────────────────────────────────────────────── */
-
-.leaf__head,
-.leaf__line {
-  opacity: 0;
-}
-
-.leaf.in .leaf__head {
-  animation: rise 0.72s var(--ease) both;
-}
-
-.leaf.in .leaf__line {
-  animation: rise 0.86s var(--ease) both;
-  animation-delay: calc(var(--d) * 1ms);
-}
-
-/* Opacity and transform only. The lines used to rise out of a 3px blur, which
-   meant every line of every arriving poem repainted a filtered layer for the
-   whole of its second on screen — on a fast scroll that is the stutter. */
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(0.7em);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
 /* ── the only controls ─────────────────────────────────────────────────── */
 
 /* 寻 and 类 are the only chrome the reading surface has, and they are not part
@@ -462,9 +432,14 @@ button {
   z-index: 20;
   background: var(--paper);
   overflow-y: auto;
+  scrollbar-width: none;
   padding: 6vh 1.5rem 0;
   display: flex;
   flex-direction: column;
+}
+
+.panel::-webkit-scrollbar {
+  display: none;
 }
 
 .panel__inner {

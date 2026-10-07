@@ -85,31 +85,10 @@ function pick(t: Token, ev: MouseEvent) {
     },
   })
 }
-
-const shown = ref(false)
-const delay = (i: number) => 60 + Math.min(i, 12) * 30
-
-// Each poem rises as it arrives in the viewport, so scrolling down is the
-// reveal and no separate control is needed to move through the collection.
-onMounted(() => {
-  const el = root.value
-  if (!el) return
-  const io = new IntersectionObserver(
-    ([entry]) => {
-      if (entry.isIntersecting) {
-        shown.value = true
-        io.disconnect()
-      }
-    },
-    { threshold: 0.2 },
-  )
-  io.observe(el)
-  onBeforeUnmount(() => io.disconnect())
-})
 </script>
 
 <template>
-  <article ref="root" class="leaf" :class="{ in: shown }">
+  <article ref="root" class="leaf">
     <div class="leaf__inner">
       <header v-if="props.leaf.part === 0" class="leaf__head">
         <h2 class="leaf__title">{{ props.leaf.poem.title }}</h2>
@@ -154,7 +133,6 @@ onMounted(() => {
           v-for="(line, i) in props.leaf.lines"
           :key="i"
           class="leaf__line"
-          :style="{ '--d': delay(i) }"
         >{{ line }}</p>
       </div>
 
@@ -167,7 +145,6 @@ onMounted(() => {
           v-for="(line, i) in props.leaf.orig"
           :key="i"
           class="leaf__oline"
-          :style="{ '--d': delay(props.leaf.lines.length + i) }"
         >{{ line }}</p>
       </div>
     </div>
@@ -193,21 +170,6 @@ onMounted(() => {
   line-height: 1.95;
   letter-spacing: 0.02em;
   color: var(--faint);
-}
-
-.leaf__oline {
-  opacity: 0;
-}
-
-.leaf.in .leaf__oline {
-  animation: rise 0.86s var(--ease) both;
-  animation-delay: calc(var(--d) * 1ms);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .leaf__oline {
-    opacity: 1;
-  }
 }
 
 .leaf__cont {
