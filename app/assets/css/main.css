@@ -77,6 +77,19 @@
   padding: 0;
 }
 
+/* No scrollbars anywhere, on any element. The site is read by gesture and
+   paging, and every surface that scrolls — the stream, the two panels, the
+   chooser's list — is meant to carry no bar; where a list continues the
+   design says so with a faded edge instead. Universal, not per-surface: a
+   new scrollable area must not quietly grow a bar back. */
+* {
+  scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}
+
 html,
 body {
   height: 100%;
@@ -140,13 +153,8 @@ button {
   height: 100dvh;
   overflow-y: auto;
   overflow-x: hidden;
-  scrollbar-width: none;
   overscroll-behavior-y: none;
   touch-action: none;
-}
-
-.stream::-webkit-scrollbar {
-  display: none;
 }
 
 /* ── one leaf = one screen of one poem ─────────────────────────────────── */
@@ -354,11 +362,6 @@ button {
   gap: 0.55rem 1.4rem;
   max-height: min(60vh, 26rem);
   overflow-y: auto;
-  scrollbar-width: none;
-}
-
-.menu__list::-webkit-scrollbar {
-  display: none;
 }
 
 /* 76 of the 100 卷 sit below the fold and the list has no scrollbar, so the
@@ -432,14 +435,9 @@ button {
   z-index: 20;
   background: var(--paper);
   overflow-y: auto;
-  scrollbar-width: none;
   padding: 6vh 1.5rem 0;
   display: flex;
   flex-direction: column;
-}
-
-.panel::-webkit-scrollbar {
-  display: none;
 }
 
 .panel__inner {
