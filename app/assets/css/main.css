@@ -143,17 +143,18 @@ button {
 
 /* ── the stream ────────────────────────────────────────────────────────── */
 
-/* One page at a time. The stream is a book, not a scroll area: it never sits
-   between two pages. The wheel, the trackpad, a swipe and the paging keys are
-   all read as gestures and turn one page each, with the tail of a trackpad's
-   inertia ignored — the debounce lives in index.vue. touch-action: none keeps
-   the browser's own scrolling out of it, so a swipe cannot drag the stream. */
+/* One page at a time. The stream is a book, not a scroll area: a fixed screen
+   that the page turns jump within. overflow: hidden is the point — a surface
+   that cannot scroll is a surface no browser, on any platform or kernel, can
+   hang a scrollbar on. The wheel, the trackpad, a swipe and the paging keys
+   are all read as gestures and turn one page each, with the tail of a
+   trackpad's inertia ignored — the debounce lives in index.vue.
+   touch-action: none keeps the browser's own scrolling out of it, so a swipe
+   cannot drag the stream. */
 .stream {
   height: 100vh;
   height: 100dvh;
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior-y: none;
+  overflow: hidden;
   touch-action: none;
 }
 
