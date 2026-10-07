@@ -320,7 +320,7 @@ button {
   letter-spacing: 0.4em;
   text-indent: 0.4em;
   color: var(--faint);
-  transition: color 0.3s var(--ease), opacity 0.5s var(--ease);
+  transition: color 0.3s var(--ease);
   opacity: 0;
   pointer-events: none;
 }
