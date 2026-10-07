@@ -9,8 +9,14 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "corpus": "python3 scripts/build-corpus.py",
+    "corpus-check": "python3 scripts/check-corpus.py",
+    "yuefu": "python3 scripts/fetch-yuefu.py",
+    "poetry": "python3 scripts/fetch-chinese-poetry.py",
+    "modern": "python3 scripts/fetch-modern.py",
+    "world": "python3 scripts/fetch-world.py",
     "fonts": "python3 scripts/build-fonts.py",
-    "poemlist": "python3 scripts/fetch-poemlist.py"
+    "contrast": "python3 scripts/check-contrast.py",
+    "search": "python3 scripts/build-search.py"
   },
   "devDependencies": {
     "nuxt": "^4.5.2"

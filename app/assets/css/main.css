@@ -7,9 +7,11 @@
    kept at the edge of legibility and only the reading surface is loud.
    ───────────────────────────────────────────────────────────────────────── */
 
-/* Song carries the site. A collection that reaches into Extension-B would want
-   a companion face for the forms Song does not draw; build-fonts.py emits one
-   only when the corpus actually needs it, so there is nothing to load here. */
+/* Song carries the site. 诗经 and 楚辞 use a few dozen Extension-B forms that
+   Song does not draw, so build-fonts.py emits a second, tiny face for exactly
+   those. It sits behind Song in the stack: the browser only reaches for it
+   when a glyph is actually missing, so a reader who never opens those two
+   books never downloads it. */
 
 @font-face {
   font-family: 'Song';
@@ -19,14 +21,38 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: 'Song Rare';
+  src: url('/fonts/rare.woff2') format('woff2');
+  font-weight: 300 500;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --paper: #faf9f6;
   --ink: #1a1815;
-  --faint: #767065;
-  --ghost: #b8b2a6;
-  --line: #e4e0d8;
+  /* Every ink below is solved against --paper for a floor, not eyeballed:
+     --ink >= 7:1 (AAA body), --faint >= 4.5:1 (AA body — labels and counts are
+     11-13px, so they are body text), --ghost >= 3:1 (the emptiest chip and the
+     paging marker: legible as a mark, never a way to read anything), --line
+     >= 1.6:1 (a rule has to be seen against the paper it is drawn on).
+     scripts/check-contrast.py re-derives all of this from this block. */
+  --faint: #5f5d5a;
+  --ghost: #918d89;
+  --line: #c6c1bb;
+  /* the selection fill. It is the one place ink sits on something other than
+     --paper, so it is solved for that instead: ink on it reads at 10.9:1. */
+  --select: #cfcac3;
+  /* the one lift on the page: the chooser, floating over the poem */
+  --shade: rgba(26, 24, 21, 0.14);
 
-  --song: 'Song', 'Songti SC', 'STSong', 'Noto Serif CJK SC', serif;
+  --song: 'Song', 'Song Rare', 'Songti SC', 'STSong', 'Noto Serif CJK SC', serif;
+
+  /* Two sizes carry every small voice on the page: apparatus and controls at
+     --micro, labels and prose at --label. */
+  --micro: 0.72rem;
+  --label: 0.8rem;
 
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
 }
@@ -35,9 +61,11 @@
   :root {
     --paper: #100f0d;
     --ink: #ebe7df;
-    --faint: #8f887c;
-    --ghost: #3d3933;
-    --line: #26241f;
+    --faint: #a3a19a;
+    --ghost: #6d6b66;
+    --line: #45443f;
+    --select: #3b3a37;
+    --shade: rgba(0, 0, 0, 0.6);
   }
 }
 
@@ -65,7 +93,26 @@ body {
 }
 
 ::selection {
-  background: var(--ghost);
+  background: var(--select);
+}
+
+/* The pointer is hidden along with the controls.
+ 
+   `cursor: none` on the root covers the whole page by inheritance, including
+   the labels under a poem's title and the buttons in the panels — which are
+   precisely the things a reader is aiming at, and precisely when the pointer is
+   moving and therefore visible. So the two rules cannot fight: the pointer is
+   hidden only while it has been still, and any movement brings it straight
+   back. There is no state in which the reader is pointing at something and
+   cannot see where they are pointing.
+ 
+   Faded rather than cut, because a cursor that vanishes instantly reads as the
+   cursor having been lost. Only opacity is transitioned: the `cursor` property
+   itself cannot be animated, and switching it is what makes the pointer
+   disappear at all. */
+html.cursor-idle,
+html.cursor-idle * {
+  cursor: none !important;
 }
 
 :focus-visible {
@@ -83,14 +130,19 @@ button {
 
 /* ── the stream ────────────────────────────────────────────────────────── */
 
+/* One page at a time. The stream is a book, not a scroll area: it never sits
+   between two pages. The wheel, the trackpad, a swipe and the paging keys are
+   all read as gestures and turn one page each, with the tail of a trackpad's
+   inertia ignored — the debounce lives in index.vue. touch-action: none keeps
+   the browser's own scrolling out of it, so a swipe cannot drag the stream. */
 .stream {
   height: 100vh;
   height: 100dvh;
   overflow-y: auto;
   overflow-x: hidden;
-  scroll-snap-type: y proximity;
   scrollbar-width: none;
   overscroll-behavior-y: none;
+  touch-action: none;
 }
 
 .stream::-webkit-scrollbar {
@@ -102,7 +154,6 @@ button {
 .leaf {
   min-height: 100vh;
   min-height: 100dvh;
-  scroll-snap-align: center;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -110,15 +161,28 @@ button {
 }
 
 .leaf__inner {
-  /* hug the longest line, so a short poem sits dead centre and a long one only
-     wraps once it has genuinely run out of room; the cap is wide enough to
-     keep a 30-character 诗经 line on one line at desktop width */
+  /* The block is a flex item, so its width is set by whichever child is
+     widest — and the 解题 is far wider than a five-character 句. Centring each
+     part on its own axis keeps the poem on the screen's centre line instead
+     of letting the apparatus drag it left. */
   max-width: min(62rem, 100%);
   margin: 0 auto;
 }
 
+.leaf__head,
+.leaf__verse {
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+}
+
+/* The title block centres its own lines, so every line of a leaf — title,
+   poet, juan, 解题, verse — shares the screen's centre. Flush left inside a
+   fit-content box, a two-character title sat 40px off that axis and the whole
+   block shifted from poem to poem as the juan line changed length. */
 .leaf__head {
   margin-bottom: 2.6em;
+  text-align: center;
 }
 
 .leaf__title {
@@ -126,14 +190,68 @@ button {
   font-weight: 400;
   letter-spacing: 0.14em;
   line-height: 1.35;
-  text-indent: 0.14em;
 }
 
 .leaf__by {
   margin-top: 0.7em;
-  font-size: 0.8rem;
-  letter-spacing: 0.34em;
+  font-size: var(--label);
+  letter-spacing: 0.32em;
   color: var(--faint);
+}
+
+/* where the poem is printed: anthology and juan, quiet under the name */
+.leaf__src {
+  margin-top: 0.55em;
+  font-size: var(--micro);
+  letter-spacing: 0.22em;
+  color: var(--faint);
+}
+
+/* Every label under a title names a place in the collection, so each one is
+   also a way into it — the poet, the era, the anthology, the juan. They sit at
+   the paper's own weight of ink and come up to full ink under a pointer or a
+   finger, which is the only mark this page puts on a control; the label the
+   reader arrived through stays inked once the pointer has gone. */
+.tok {
+  color: inherit;
+  transition: color 0.25s var(--ease);
+}
+
+.tok:hover,
+.tok:focus-visible,
+.tok:active,
+.tok[aria-pressed='true'] {
+  color: var(--ink);
+}
+
+/* A finger needs a target it can hit: the labels are 11-16px tall as printed,
+   so on a coarse pointer the box grows outward without moving the text. */
+@media (pointer: coarse) {
+  .tok {
+    padding: 0.6em 0.35em;
+    margin: -0.6em -0.35em;
+  }
+}
+
+/* the compiler's 解题 — apparatus, a step under the verse but not in the ink
+   this site reserves for things that cannot be used (disabled chips). It sits
+   outside the head so its unbroken width cannot stretch the title block. */
+.leaf__note {
+  width: min(32rem, 100%);
+  margin: 0 auto 2.6em;
+  font-size: var(--label);
+  line-height: 2.05;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+  text-align: justify;
+}
+
+/* A 解题 is prose and justifies; an attribution line is a label and centres.
+   This has to sit after the rule above — same specificity, so source order is
+   what decides it. */
+.leaf__note--line {
+  width: auto;
+  text-align: center;
 }
 
 /* A 句 that runs past the measure continues on a hanging indent, so a folded
@@ -165,90 +283,183 @@ button {
 }
 
 .leaf.in .leaf__head {
-  animation: rise 0.9s var(--ease) both;
+  animation: rise 0.72s var(--ease) both;
 }
 
 .leaf.in .leaf__line {
-  animation: rise 1s var(--ease) both;
+  animation: rise 0.86s var(--ease) both;
   animation-delay: calc(var(--d) * 1ms);
 }
 
+/* Opacity and transform only. The lines used to rise out of a 3px blur, which
+   meant every line of every arriving poem repainted a filtered layer for the
+   whole of its second on screen — on a fast scroll that is the stutter. */
 @keyframes rise {
   from {
     opacity: 0;
     transform: translateY(0.7em);
-    filter: blur(3px);
   }
   to {
     opacity: 1;
     transform: none;
-    filter: blur(0);
   }
 }
 
-/* ── the only controls, kept at the edge of legibility ─────────────────── */
+/* ── the only controls ─────────────────────────────────────────────────── */
 
+/* 寻 and 类 are the only chrome the reading surface has, and they are not part
+   of reading: they are reached for, then forgotten. So they are absent by
+   default and surface when the pointer moves, the way a video's controls do.
+   A mouse that is still means a reader who is reading.
+ 
+   This is a `hover: hover` device only. A touch screen has no idle pointer to
+   wait for — a finger is either on the glass or gone — so there the controls
+   are simply always there, which is what a finger needs. */
 .edge {
   position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
+  bottom: calc(2.2rem + env(safe-area-inset-bottom));
   z-index: 10;
-  font-size: 0.74rem;
+  font-size: var(--micro);
   letter-spacing: 0.4em;
+  text-indent: 0.4em;
   color: var(--faint);
   transition: color 0.3s var(--ease), opacity 0.5s var(--ease);
-  text-indent: 0.4em;
 }
 
-.edge:hover {
-  color: var(--ink);
+.edge--find {
+  right: 4.2rem;
 }
 
-.hint {
-  bottom: 4.6rem;
-  pointer-events: none;
-}
-
-.hint.gone {
-  opacity: 0;
-}
-
-/* current filter, and the one way to redraw — the top-left corner */
-.filter-note {
-  position: fixed;
-  top: 2.2rem;
-  left: 1.5rem;
-  z-index: 10;
-  display: flex;
-  gap: 1.4em;
-  align-items: baseline;
-  font-size: 0.74rem;
-  letter-spacing: 0.3em;
-  color: var(--faint);
-}
-
-/* the active choice is the one thing up here worth reading */
-.filter-note .active {
-  color: var(--ink);
-}
-
-.filter-note button {
-  color: var(--faint);
-  letter-spacing: 0.3em;
-  text-indent: 0.3em;
-  transition: color 0.3s var(--ease);
-}
-
-.filter-note button:hover {
-  color: var(--ink);
-}
-
-/* the controls sit in three corners, leaving the reading column untouched */
-.facets-btn {
+.edge--facets {
   right: 1.5rem;
-  left: auto;
-  bottom: 2.2rem;
-  transform: none;
+}
+
+.edge:hover,
+.edge:focus-visible {
+  color: var(--ink);
+}
+
+@media (hover: hover) {
+  .edge {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* shown by the page's own pointer-idle timer, and never while it is being
+     aimed at or tabbed to — a control that vanishes as you reach for it is
+     worse than one that was never there */
+  .edge--awake,
+  .edge:focus-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* ── the chooser that hangs off a label ────────────────────────────────── */
+
+/* Clicking 李白 could quietly narrow the whole stream, which tells the reader
+   nothing; this is the same chip vocabulary as the panel, one axis at a time,
+   hanging off the word that was clicked. It takes the paper's own colour and a
+   single hairline to lift it off the poem, and leaves as soon as it is read. */
+.menu {
+  position: fixed;
+  z-index: 15;
+  width: min(28rem, calc(100vw - 2.5rem));
+  padding: 1.1rem 1.3rem 1.2rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  box-shadow: 0 1.4rem 2.6rem -1rem var(--shade);
+}
+
+/* focus is moved here on open so Esc and the reader's next Tab land inside;
+   the outline is not drawn because the container is not the control — its
+   rows are, and they carry their own rings */
+.menu:focus {
+  outline: none;
+}
+
+.menu__lead {
+  font-size: var(--micro);
+  letter-spacing: 0.4em;
+  color: var(--faint);
+  margin-bottom: 0.9rem;
+}
+
+/* a hundred 卷 read as a table of contents, not as a hundred-row column */
+.menu__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+  gap: 0.55rem 1.4rem;
+  max-height: min(60vh, 26rem);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.menu__list::-webkit-scrollbar {
+  display: none;
+}
+
+/* 76 of the 100 卷 sit below the fold and the list has no scrollbar, so the
+   sheet fades its own bottom edge to say so */
+.menu__list--more {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 2.4rem), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 2.4rem), transparent);
+}
+
+.menu__row {
+  display: flex;
+  gap: 1rem;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 0.98rem;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  color: var(--faint);
+  transition: color 0.2s var(--ease);
+}
+
+.menu__row:hover {
+  color: var(--ink);
+}
+
+.menu__row[aria-pressed='true'] {
+  color: var(--ink);
+}
+
+.menu__row[aria-pressed='true'] .chip__n {
+  color: var(--ink);
+}
+
+/* an empty combination stays put and greys out, exactly as in the panel */
+.menu__row--empty,
+.menu__row--empty:hover {
+  color: var(--ghost);
+  cursor: default;
+}
+
+/* the sheet's only way to the rest of the long axes — faint, but not the
+   faintest ink on the page, since it is also the tell that labels open */
+.menu__more {
+  margin-top: 1.1rem;
+  font-size: var(--micro);
+  letter-spacing: 0.22em;
+  color: var(--faint);
+  transition: color 0.2s var(--ease);
+}
+
+.menu__more:hover {
+  color: var(--ink);
+}
+
+.menu-enter-active,
+.menu-leave-active {
+  transition: opacity 0.18s var(--ease), transform 0.18s var(--ease);
+}
+
+.menu-enter-from,
+.menu-leave-to {
+  opacity: 0;
+  transform: translateY(-0.35rem);
 }
 
 /* ── the category surface ──────────────────────────────────────────────── */
@@ -260,19 +471,27 @@ button {
   background: var(--paper);
   overflow-y: auto;
   padding: 6vh 1.5rem 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .panel__inner {
   max-width: 46rem;
+  width: 100%;
   margin: 0 auto;
+  /* The sheet fills the scrollport rather than ending where the content does.
+     A filter can leave two axes to show, and a foot that stops 38% of the way
+     down a full-height sheet reads as a page that failed to fill. */
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
 }
 
-.panel__lead {
-  font-size: 0.8rem;
-  letter-spacing: 0.4em;
-  color: var(--faint);
-  margin-bottom: 4rem;
-  text-indent: 0.4em;
+/* The axes give up their height before the foot gives up its place, so the foot
+   stays at the foot of the page in every state and the panel is closed by the
+   foot's own rule instead of by a rule on the last axis. */
+.panel__axes {
+  flex: 1 0 auto;
 }
 
 .axis {
@@ -288,7 +507,7 @@ button {
 }
 
 .axis__label {
-  font-size: 0.78rem;
+  font-size: var(--label);
   letter-spacing: 0.32em;
   color: var(--faint);
   padding-top: 0.35em;
@@ -313,13 +532,13 @@ button {
   color: var(--ink);
 }
 
+/* the same mark as the chooser's rows: the chosen value is the one in ink */
 .chip[aria-pressed='true'] {
   color: var(--ink);
-  box-shadow: inset 0 -1px 0 0 var(--ink);
 }
 
 .chip__n {
-  font-size: 0.72rem;
+  font-size: var(--micro);
   letter-spacing: 0;
   color: var(--faint);
   margin-left: 0.4em;
@@ -340,23 +559,30 @@ button {
   display: flex;
   gap: 2rem;
   background: var(--paper);
-  box-shadow: 0 -1.5rem 1.5rem var(--paper);
 }
 
+/* The foot covers the choices that scroll under it, and a translucent blur over
+   live text is a lie: a chip at 40% ink reads as disabled. So the foot is solid
+   paper and nothing else.
+ 
+   It deliberately has no rule of its own. A sticky foot's top edge is a fixed
+   line in the viewport, so any separator rule scrolling past it would pair with
+   it — two identical hairlines a few pixels apart with nothing between them,
+   which reads as a mistake rather than as two lines. The axes close the list
+   themselves (the last one carries a bottom rule), and the foot is simply the
+   paper below. */
+
 .panel__foot button {
-  font-size: 0.8rem;
-  letter-spacing: 0.34em;
+  font-size: var(--micro);
+  letter-spacing: 0.4em;
   color: var(--faint);
-  text-indent: 0.34em;
+  text-indent: 0.4em;
   transition: color 0.2s var(--ease);
 }
 
-.chip[aria-pressed='true'] {
-  color: var(--ink);
-  box-shadow: inset 0 -1px 0 0 var(--ink);
-}
-
-/* an empty combination stays put and greys out rather than disappearing */
+/* an empty combination stays put and greys out rather than disappearing. This
+   is the one legitimate use of --ghost on text: the option is inert on purpose
+   and has to read as inert, so it sits at the 3:1 floor instead of AA. */
 .chip--empty,
 .chip--empty:hover {
   color: var(--ghost);
@@ -364,7 +590,7 @@ button {
 }
 
 .chip--more {
-  color: var(--ghost);
+  color: var(--faint);
 }
 
 .chip--more:hover {

@@ -7,7 +7,7 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
 
   app: {
-    // GitHub Pages project site lives under /<repo>/; the deploy workflow sets this.
+    // 部署在子路径时用 NUXT_APP_BASE_URL 传入（如 GitHub Pages 项目页）；根路径不设。
     baseURL: baseURL,
     pageTransition: false,
     head: {

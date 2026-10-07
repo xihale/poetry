@@ -22,5 +22,14 @@ yarn-error.log*
 .env.*
 !.env.example
 
-# the raw anthology downloads are reproducible; public/corpus.json is committed
+# The source checkouts and downloads are reproducible from the fetch scripts.
+# public/corpus/ is NOT ignored: it is what the site serves, 45 MiB of it, and
+# committing it keeps the deploy a pure build with no network and no 220 MB
+# clone of someone else's repo. Rebuild it with `bun run corpus`.
 /.cache
+
+# python bytecode from the corpus scripts
+__pycache__/
+
+# 设计过程的工作区（截图与笔记），不是产品
+/.design

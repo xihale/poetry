@@ -17,13 +17,14 @@ left as blank gaps in the middle of a couplet.
 """
 from __future__ import annotations
 
+import gzip
 import json
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-CORPUS = ROOT / "public" / "corpus.json"
+CORPUS = ROOT / "public" / "corpus"
 OUT = ROOT / "public" / "fonts"
 
 FACE_TTC = "/usr/share/fonts/noto-cjk/NotoSerifCJK-Light.ttc"
@@ -38,13 +39,16 @@ JIGMO_MEMBER = "Jigmo2.ttf"
 FALLBACK_RARE = Path("/usr/share/fonts/TTF/LXGWWenKai-Regular.ttf")
 
 UI_STRINGS = [
-    "拈一卷中国古典诗选",
-    "分类全部作者时代体裁情绪视角篇幅换一首",
-    "向下滑动合卷清除其余",
-    "先秦秦汉魏晋南北朝隋唐五代宋辽金元明清近现代",
-    "四言五言七言杂言词赋文现代短中长",
+    "白卷拈一卷",
+    "部类分类全部作者时代体裁语言情绪视角篇幅换一首",
+    "合卷清除其余",
+    "先秦秦汉魏晋南北朝隋唐五代宋元明清不详",
+    "英法德俄印度美",
+    "中文英文法文德文俄文日文",
+    "三言四言五言六言七言杂言词曲楚辞赋文短中长",
+    "十四行诗散文诗",
     "愁思独欢闲壮惊我你他谁天地",
-    "佚名",
+    "佚名无名氏",
     "、。，；：？！“”‘’（）《》〈〉【】—…·　「」『』",
     "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
     ".,;:!?'\"()[]{}<>/-–—+*=&%@#~|\\^$`_ \n\t",
@@ -52,16 +56,25 @@ UI_STRINGS = [
 
 
 def corpus_chars() -> set[str]:
+    """Every character the page can draw, read off the emitted corpus.
+
+    A chunk carries twenty poems — the verse, the title, the 解题 and the labels
+    — so the chunks alone are the glyph inventory. Nothing is cross-checked
+    against a second file, which is also why a label can never be missing from
+    the font: it is drawn from the same file it is read from.
+    """
     if not CORPUS.exists():
         raise SystemExit("run scripts/build-corpus.py first")
     chars: set[str] = set()
-    for poem in json.loads(CORPUS.read_text(encoding="utf-8")):
-        # era and form are drawn on the leaf, so they need glyphs too — this is
-        # what the label 魏晋 was missing before
-        for field in ("title", "author", "era", "form", "text"):
-            chars |= set(poem[field])
-        for field in ("mood", "view"):
-            chars |= set("".join(poem[field]))
+    for f in CORPUS.glob("t/*.json.gz"):
+        with gzip.open(f, "rt", encoding="utf-8") as fh:
+            for poem in json.load(fh):
+                # every field the page can draw needs a glyph: the 解题 and the
+                # provenance line are rendered too, not just the verse
+                for field in ("t", "x", "n", "o"):
+                    chars |= set(poem.get(field) or "")
+                for label in poem.get("l", ()):
+                    chars |= set("".join(label) if isinstance(label, list) else label)
     return chars
 
 
