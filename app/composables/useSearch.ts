@@ -193,6 +193,121 @@ function intersect(lists: Uint32Array[]): Uint32Array {
   return current
 }
 
+/**
+ * Every bigram of the query and its posting list, `undefined` when the corpus
+ * holds no such pair. The terms are distinct: a repeated bigram says the same
+ * thing twice, and the relaxed answer below would count that twice.
+ */
+async function postingsOf(query: string): Promise<{
+  terms: string[]
+  lists: (Uint32Array | undefined)[]
+}> {
+  await index()
+  const terms = [...new Set(pairs(normalise(query)))]
+  const where: number[] = []
+  const need = new Set<number>()
+  for (const term of terms) {
+    const n = shardOf(term)
+    where.push(n)
+    need.add(n)
+  }
+  const numbers = [...need]
+  const parts = await Promise.all(numbers.map(shard))
+  const tables = new Map<number, Map<string, Uint32Array>>()
+  numbers.forEach((n, i) => tables.set(n, parts[i]!))
+  return { terms, lists: terms.map((t, i) => tables.get(where[i]!)?.get(t)) }
+}
+
+/**
+ * The relaxed candidate set: every poem sharing at least two of the query's
+ * bigrams, most-shared first. One shared bigram is nothing — 「人间」 alone
+ * would drag in thousands — two is the least that still says the poem and the
+ * query are about the same words. The lists are the ones the exact round
+ * already fetched; this costs a scan of the postings, not another request.
+ */
+function nearCandidates(lists: (Uint32Array | undefined)[]): { id: number; cov: number }[] {
+  const cov = new Map<number, number>()
+  for (const list of lists) {
+    if (!list) continue
+    for (const id of list) cov.set(id, (cov.get(id) ?? 0) + 1)
+  }
+  const out: { id: number; cov: number }[] = []
+  for (const [id, n] of cov) if (n >= 2) out.push({ id, cov: n })
+  out.sort((a, b) => b.cov - a.cov || a.id - b.id)
+  return out
+}
+
+/** Where the query lands in one poem without landing exactly. */
+interface Near {
+  line: string
+  mark: [number, number]
+  /** how many of the query's bigrams the best line carries */
+  score: number
+  /** how many of the query's characters the best line carries */
+  overlap: number
+  inTitle: boolean
+}
+
+/**
+ * The line of a poem that carries the most of the query's bigrams, with each
+ * bigram's printed span merged into runs and the longest run kept as the mark.
+ *
+ * The index cannot repair a wrong character, and this does not try — it counts
+ * what did arrive. 「兰陵王·凤啸咽」 keeps two of its four bigrams on every
+ * 兰陵王 in the corpus; what separates the right one is the second count: of
+ * thirty-odd siblings, the title that still shares 凤 and 咽 with the query is
+ * the one the reader meant.
+ */
+function nearOf(poem: { title: string; text: string }, terms: string[],
+                needle: string): Near | null {
+  let best: Near | null = null
+  const consider = (raw: string, inTitle: boolean) => {
+    const target = normalise(raw)
+    const spans: [number, number][] = []
+    for (const term of terms) {
+      const at = target.indexOf(term)
+      if (at < 0) continue
+      // the normalised offset back onto the printed string, as the exact
+      // search maps it
+      let seen = 0
+      let start = -1
+      let end = raw.length
+      for (let i = 0; i < raw.length; i++) {
+        if (INDEXED.test(raw[i]!.toLowerCase())) {
+          if (seen === at) start = i
+          if (seen === at + term.length - 1) { end = i + 1; break }
+          seen++
+        }
+      }
+      if (start < 0) continue
+      spans.push([start, end])
+    }
+    if (!spans.length) return
+    spans.sort((a, b) => a[0]! - b[0]!)
+    const runs: [number, number][] = []
+    for (const s of spans) {
+      const last = runs[runs.length - 1]
+      if (last && s[0]! <= last[1]!) last[1] = Math.max(last[1]!, s[1]!)
+      else runs.push([s[0]!, s[1]!])
+    }
+    const mark = runs.reduce((a, b) => (b[1] - b[0] > a[1] - a[0] ? b : a))
+    const pool = new Map<string, number>()
+    for (const ch of target) pool.set(ch, (pool.get(ch) ?? 0) + 1)
+    let overlap = 0
+    for (const ch of needle) {
+      const left = pool.get(ch) ?? 0
+      if (left) { overlap++; pool.set(ch, left - 1) }
+    }
+    if (!best || spans.length > best.score
+        || (spans.length === best.score && overlap > best.overlap)) {
+      best = { line: raw, mark, score: spans.length, overlap, inTitle }
+    }
+  }
+  consider(poem.title, true)
+  for (const line of poem.text.split('\n')) consider(line, false)
+  return best
+}
+
 export interface Found {
   hits: Hit[]
   /**
@@ -219,33 +334,16 @@ export function useSearch(corpus: Corpus): Search {
   void index().catch(() => {})
 
   async function candidatesOf(query: string): Promise<Uint32Array> {
-    await index()
-    const terms = pairs(normalise(query))
+    const { terms, lists } = await postingsOf(query)
     if (!terms.length) return new Uint32Array(0)
 
-    // one pass: hash each term once, keep its shard, and collect the distinct
-    // shards to fetch. The tables come back keyed by shard number, so the
-    // lookup below is a Map hit rather than a scan per term.
-    const where: number[] = []
-    const need = new Set<number>()
-    for (const term of terms) {
-      const n = shardOf(term)
-      where.push(n)
-      need.add(n)
-    }
-    const numbers = [...need]
-    const parts = await Promise.all(numbers.map(shard))
-    const tables = new Map<number, Map<string, Uint32Array>>()
-    numbers.forEach((n, i) => tables.set(n, parts[i]!))
-
-    const lists: Uint32Array[] = []
-    for (let i = 0; i < terms.length; i++) {
-      const list = tables.get(where[i]!)?.get(terms[i]!)
+    const ok: Uint32Array[] = []
+    for (const list of lists) {
       // a bigram nothing contains means nothing matches; the intersection is empty
       if (!list) return new Uint32Array(0)
-      lists.push(list)
+      ok.push(list)
     }
-    return intersect(lists)
+    return intersect(ok)
   }
 
   /**
@@ -318,7 +416,50 @@ export function useSearch(corpus: Corpus): Search {
     // A hit in the title is what the reader named, not just where the words
     // appear; after that a short poem is likelier to be the one they meant.
     hits.sort((a, b) => Number(b.inTitle) - Number(a.inTitle) || a.id - b.id)
-    return { hits, complete: scanned >= ids.length, candidates: ids.length }
+    if (hits.length) {
+      return { hits, complete: scanned >= ids.length, candidates: ids.length }
+    }
+    return near(needle, limit)
+  }
+
+  /**
+   * The second chance, after the exact answer came back empty.
+   *
+   * Nothing in the corpus holds the phrase, so the exact contract is
+   * unmeetable — but 「兰陵王·凤啸咽」 typed for 「兰陵王·凤箫咽」 is one wrong
+   * character from the poem the reader wants, and 「没有这一句」 would send them
+   * away. The index cannot repair the character and this does not try: the
+   * query's bigrams that *did* land still tie candidates to the query. Poems
+   * sharing at least two of them are confirmed against their text like any
+   * exact candidate, ranked by shared bigrams, then by how much of the query
+   * their best line carries, then title hits first. The mark is the longest
+   * run that actually matched, so the list shows what arrived, not what was
+   * hoped for — nothing here pretends the query is on the page.
+   */
+  async function near(needle: string, limit: number): Promise<Found> {
+    const { terms, lists } = await postingsOf(needle)
+    const cands = terms.length >= 2 ? nearCandidates(lists) : []
+    const hits: (Hit & { cov: number; overlap: number })[] = []
+    let scanned = 0
+
+    const batch = 24
+    for (let at = 0; at < cands.length && hits.length < limit; at += batch) {
+      scanned = Math.min(cands.length, at + batch)
+      const slice = cands.slice(at, at + batch)
+      const poems = await Promise.all(slice.map((c) => corpus.poem(c.id)))
+      poems.forEach((poem, i) => {
+        const found = nearOf(poem, terms, needle)
+        if (!found || found.score < 2) return
+        hits.push({ id: poem.id, title: poem.title, author: poem.author,
+                    coll: poem.coll, line: found.line, mark: found.mark,
+                    inTitle: found.inTitle, cov: slice[i]!.cov,
+                    overlap: found.overlap })
+      })
+    }
+
+    hits.sort((a, b) => b.cov - a.cov || b.overlap - a.overlap
+                      || Number(b.inTitle) - Number(a.inTitle) || a.id - b.id)
+    return { hits, complete: scanned >= cands.length, candidates: cands.length }
   }
 
   return { run }
